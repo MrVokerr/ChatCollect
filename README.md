@@ -1,0 +1,2 @@
+# ChatCollect
+Twitch Chat Game
