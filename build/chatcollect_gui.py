@@ -1018,6 +1018,49 @@ class ToggleSwitch(QCheckBox):
             text_rect = QRectF(sw_width + 10, 0, self.width() - sw_width - 10, self.height())
             p.drawText(text_rect, Qt.AlignLeft | Qt.AlignVCenter, self.text())
 
+class ToastNotification(QLabel):
+    def __init__(self, text, parent=None):
+        super().__init__(text, parent)
+        self.setStyleSheet("""
+            background-color: #333; 
+            color: white; 
+            padding: 10px 20px; 
+            border-radius: 5px; 
+            font-weight: bold;
+            border: 1px solid #555;
+        """)
+        self.setAlignment(Qt.AlignCenter)
+        self.adjustSize()
+        self.hide()
+        
+        self.timer = QTimer(self)
+        self.timer.setSingleShot(True)
+        self.timer.timeout.connect(self.fade_out)
+        
+        self.opacity_effect = None
+        self.animation = None
+
+    def show_message(self, text, duration=2000):
+        self.setText(text)
+        self.adjustSize()
+        
+        if self.parent():
+            # Center horizontally, position near bottom
+            parent_rect = self.parent().rect()
+            x = (parent_rect.width() - self.width()) // 2
+            y = parent_rect.height() - self.height() - 50
+            self.move(x, y)
+            
+        self.show()
+        self.raise_()
+        
+        # Reset opacity
+        # (Simple show for now, animation can be added if needed)
+        self.timer.start(duration)
+
+    def fade_out(self):
+        self.hide()
+
 # ============ MAIN GUI WINDOW ============
 class ChatCollectGUI(QMainWindow):
     def __init__(self):
@@ -1025,6 +1068,9 @@ class ChatCollectGUI(QMainWindow):
         self.bot_thread = None
         self.config = self.load_config()
         self.init_ui()
+        
+        # Toast
+        self.toast = ToastNotification("", self)
 
     def resource_path(self, relative_path):
         """ Get absolute path to resource, works for dev and for PyInstaller """
@@ -1138,17 +1184,34 @@ class ChatCollectGUI(QMainWindow):
                 background-color: #252525;
                 border: 1px solid #333;
                 border-radius: 6px;
-                padding: 8px;
+                padding: 5px 10px;
                 color: #ffffff;
                 min-width: 6em;
             }
             QComboBox::drop-down {
                 subcontrol-origin: padding;
                 subcontrol-position: top right;
-                width: 20px;
-                border-left-width: 0px;
+                width: 25px;
+                border-left-width: 1px;
+                border-left-color: #333;
+                border-left-style: solid;
                 border-top-right-radius: 6px;
                 border-bottom-right-radius: 6px;
+                background-color: #2d2d2d;
+            }
+            QComboBox::down-arrow {
+                width: 0; 
+                height: 0; 
+                border-left: 5px solid transparent;
+                border-right: 5px solid transparent;
+                border-top: 5px solid #e0e0e0;
+                margin-top: 2px;
+            }
+            QComboBox QAbstractItemView {
+                background-color: #252525;
+                border: 1px solid #333;
+                selection-background-color: #007acc;
+                outline: none;
             }
             QComboBox QAbstractItemView {
                 background-color: #252525;
@@ -1317,7 +1380,10 @@ class ChatCollectGUI(QMainWindow):
         self.rarity_combo.lineEdit().setReadOnly(True)
         self.rarity_combo.lineEdit().setAlignment(Qt.AlignCenter)
         self.rarity_combo.addItems(["Standard", "Ruined", "Shiny", "Golden", "Legendary"])
+        self.rarity_combo.setFixedWidth(120)
         test_layout.addWidget(self.rarity_combo)
+        
+        test_layout.addSpacing(20)
 
         # Item Dropdown
         test_layout.addWidget(QLabel("Item:"))
@@ -1330,7 +1396,10 @@ class ChatCollectGUI(QMainWindow):
         for filename in all_items:
             display_name = format_item_name(filename)
             self.item_combo.addItem(display_name, filename) # Store filename as user data
+        self.item_combo.setFixedWidth(200)
         test_layout.addWidget(self.item_combo)
+        
+        test_layout.addStretch()
 
         # Test Button
         self.custom_test_btn = QPushButton("🧪 Test")
@@ -1573,6 +1642,8 @@ class ChatCollectGUI(QMainWindow):
         rank_scroll.setWidgetResizable(True)
         rank_scroll_content = QWidget()
         self.ranks_layout = QVBoxLayout(rank_scroll_content)
+        self.ranks_layout.setSpacing(5)
+        self.ranks_layout.setContentsMargins(10, 10, 10, 10)
         
         # Load ranks
         self.rank_inputs = []
@@ -1599,6 +1670,56 @@ class ChatCollectGUI(QMainWindow):
         save_btn.clicked.connect(self.save_configuration)
         layout.addWidget(save_btn)
 
+        # --- Balance Tab ---
+        balance_tab = QWidget()
+        balance_layout = QGridLayout()
+        
+        # Cooldown
+        balance_layout.addWidget(QLabel("Cooldown (seconds):"), 0, 0)
+        self.cooldown_spin = QSpinBox()
+        self.cooldown_spin.setRange(1, 3600)
+        self.cooldown_spin.setValue(int(self.config.get('cooldown', 60)))
+        self.cooldown_spin.valueChanged.connect(self.save_settings_change)
+        balance_layout.addWidget(self.cooldown_spin, 0, 1)
+        
+        # Shiny Chance
+        balance_layout.addWidget(QLabel("Shiny Chance (1 in X):"), 1, 0)
+        self.shiny_chance_spin = QSpinBox()
+        self.shiny_chance_spin.setRange(1, 1000000)
+        self.shiny_chance_spin.setValue(int(self.config.get('shiny_chance', 10000)))
+        self.shiny_chance_spin.valueChanged.connect(self.save_settings_change)
+        balance_layout.addWidget(self.shiny_chance_spin, 1, 1)
+        
+        # Legendary Chance
+        balance_layout.addWidget(QLabel("Legendary Chance (1 in X):"), 2, 0)
+        self.legendary_chance_spin = QSpinBox()
+        self.legendary_chance_spin.setRange(1, 1000000)
+        self.legendary_chance_spin.setValue(int(self.config.get('legendary_chance', 1000)))
+        self.legendary_chance_spin.valueChanged.connect(self.save_settings_change)
+        balance_layout.addWidget(self.legendary_chance_spin, 2, 1)
+        
+        # Loot Points Range
+        balance_layout.addWidget(QLabel("Normal Loot Points (Min - Max):"), 3, 0)
+        loot_range_layout = QHBoxLayout()
+        self.loot_min_spin = QSpinBox()
+        self.loot_min_spin.setRange(1, 1000)
+        self.loot_min_spin.setValue(int(self.config.get('loot_min', 1)))
+        self.loot_min_spin.valueChanged.connect(self.save_settings_change)
+        loot_range_layout.addWidget(self.loot_min_spin)
+        
+        loot_range_layout.addWidget(QLabel("-"))
+        
+        self.loot_max_spin = QSpinBox()
+        self.loot_max_spin.setRange(1, 1000)
+        self.loot_max_spin.setValue(int(self.config.get('loot_max', 1)))
+        self.loot_max_spin.valueChanged.connect(self.save_settings_change)
+        loot_range_layout.addWidget(self.loot_max_spin)
+        
+        balance_layout.addLayout(loot_range_layout, 3, 1)
+        
+        balance_tab.setLayout(balance_layout)
+        self.setup_tabs.addTab(balance_tab, "⚖️ Balance")
+
     def add_config_input(self, layout, category, key, label_text):
         layout.addRow(QLabel(label_text))
         input_field = QLineEdit()
@@ -1614,7 +1735,7 @@ class ChatCollectGUI(QMainWindow):
     def add_rank_row(self, score, title):
         row_widget = QWidget()
         row_layout = QHBoxLayout(row_widget)
-        row_layout.setContentsMargins(0, 0, 0, 0)
+        row_layout.setContentsMargins(0, 2, 0, 2)
         
         score_input = QLineEdit(str(score))
         score_input.setValidator(QIntValidator())
@@ -1725,56 +1846,6 @@ class ChatCollectGUI(QMainWindow):
         
         backup_group.setLayout(backup_layout)
         layout.addWidget(backup_group)
-        
-        # Game Balance Group
-        balance_group = QGroupBox("Game Balance")
-        balance_layout = QGridLayout()
-        
-        # Cooldown
-        balance_layout.addWidget(QLabel("Cooldown (seconds):"), 0, 0)
-        self.cooldown_spin = QSpinBox()
-        self.cooldown_spin.setRange(1, 3600)
-        self.cooldown_spin.setValue(int(self.config.get('cooldown', 60)))
-        self.cooldown_spin.valueChanged.connect(self.save_settings_change)
-        balance_layout.addWidget(self.cooldown_spin, 0, 1)
-        
-        # Shiny Chance
-        balance_layout.addWidget(QLabel("Shiny Chance (1 in X):"), 1, 0)
-        self.shiny_chance_spin = QSpinBox()
-        self.shiny_chance_spin.setRange(1, 1000000)
-        self.shiny_chance_spin.setValue(int(self.config.get('shiny_chance', 10000)))
-        self.shiny_chance_spin.valueChanged.connect(self.save_settings_change)
-        balance_layout.addWidget(self.shiny_chance_spin, 1, 1)
-        
-        # Legendary Chance
-        balance_layout.addWidget(QLabel("Legendary Chance (1 in X):"), 2, 0)
-        self.legendary_chance_spin = QSpinBox()
-        self.legendary_chance_spin.setRange(1, 1000000)
-        self.legendary_chance_spin.setValue(int(self.config.get('legendary_chance', 1000)))
-        self.legendary_chance_spin.valueChanged.connect(self.save_settings_change)
-        balance_layout.addWidget(self.legendary_chance_spin, 2, 1)
-        
-        # Loot Points Range
-        balance_layout.addWidget(QLabel("Normal Loot Points (Min - Max):"), 3, 0)
-        loot_range_layout = QHBoxLayout()
-        self.loot_min_spin = QSpinBox()
-        self.loot_min_spin.setRange(1, 1000)
-        self.loot_min_spin.setValue(int(self.config.get('loot_min', 1)))
-        self.loot_min_spin.valueChanged.connect(self.save_settings_change)
-        loot_range_layout.addWidget(self.loot_min_spin)
-        
-        loot_range_layout.addWidget(QLabel("-"))
-        
-        self.loot_max_spin = QSpinBox()
-        self.loot_max_spin.setRange(1, 1000)
-        self.loot_max_spin.setValue(int(self.config.get('loot_max', 1)))
-        self.loot_max_spin.valueChanged.connect(self.save_settings_change)
-        loot_range_layout.addWidget(self.loot_max_spin)
-        
-        balance_layout.addLayout(loot_range_layout, 3, 1)
-        
-        balance_group.setLayout(balance_layout)
-        layout.addWidget(balance_group)
         
         layout.addStretch()
 
@@ -2060,7 +2131,8 @@ class ChatCollectGUI(QMainWindow):
 
             # Only show message box if triggered manually (not by auto-save or spinbox change)
             if isinstance(self.sender(), QPushButton):
-                QMessageBox.information(self, "Success", "Configuration saved!")
+                # Use Toast instead of QMessageBox to avoid sound
+                self.toast.show_message("✅ Configuration Saved!")
         except Exception as e:
             self.log(f"❌ Error saving config: {e}")
             QMessageBox.critical(self, "Error", f"Failed to save config: {e}")
