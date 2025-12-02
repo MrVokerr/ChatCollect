@@ -21,7 +21,7 @@ import websockets
 from twitchio.ext import commands
 
 # ============ VERSION & UPDATE CONFIG ============
-CURRENT_VERSION = "1.0.2"
+CURRENT_VERSION = "1.0.3"
 # REPLACE THESE WITH YOUR ACTUAL GITHUB URLs
 UPDATE_VERSION_URL = "https://raw.githubusercontent.com/MrVokerr/ChatCollect/main/version.txt"
 UPDATE_EXE_URL = "https://github.com/MrVokerr/ChatCollect/releases/latest/download/ChatCollect.exe"
@@ -1798,6 +1798,21 @@ class ChatCollectGUI(QMainWindow):
         self.save_configuration()
         
     def load_config(self):
+        # Auto-restore from backup if config is missing
+        if not os.path.exists(CONFIG_FILE):
+            backup_dir = os.path.join(os.getcwd(), "backups")
+            if os.path.exists(backup_dir):
+                # Find latest auto-backup
+                auto_backups = [f for f in os.listdir(backup_dir) if f.startswith("config_auto_") and f.endswith(".json")]
+                if auto_backups:
+                    auto_backups.sort(reverse=True) # Latest timestamp first
+                    latest_backup = os.path.join(backup_dir, auto_backups[0])
+                    try:
+                        shutil.copy2(latest_backup, CONFIG_FILE)
+                        print(f"Restored config from auto-backup: {latest_backup}")
+                    except Exception as e:
+                        print(f"Failed to restore auto-backup: {e}")
+
         if os.path.exists(CONFIG_FILE):
             try:
                 with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
@@ -1870,7 +1885,7 @@ class ChatCollectGUI(QMainWindow):
                 self.log("🔄 Bot configuration updated live!")
 
             # Only show message box if triggered manually (not by auto-save or spinbox change)
-            if self.sender() == self.save_config_btn:
+            if isinstance(self.sender(), QPushButton):
                 QMessageBox.information(self, "Success", "Configuration saved!")
         except Exception as e:
             self.log(f"❌ Error saving config: {e}")
