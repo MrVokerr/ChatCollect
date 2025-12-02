@@ -149,6 +149,82 @@
         #notification.show {
             top: 50px;
         }
+
+        /* Leaderboard */
+        .leaderboard {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 300px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid #FFD700;
+            border-radius: 10px;
+            padding: 10px;
+            color: white;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);
+            transition: opacity 0.5s ease;
+            opacity: 1;
+            z-index: 1000;
+        }
+
+        .leaderboard.hidden {
+            opacity: 0;
+        }
+
+        .leaderboard-header {
+            text-align: center;
+            font-size: 1.2em;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #FFD700;
+            border-bottom: 1px solid #555;
+            padding-bottom: 5px;
+        }
+
+        .leaderboard-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 0;
+            border-bottom: 1px solid #333;
+            font-size: 0.9em;
+        }
+
+        .leaderboard-item:last-child {
+            border-bottom: none;
+        }
+
+        .rank {
+            width: 30px;
+            font-weight: bold;
+            color: #aaa;
+            text-align: center;
+        }
+        
+        .rank-1 { color: #FFD700; font-size: 1.1em; }
+        .rank-2 { color: #C0C0C0; font-size: 1.1em; }
+        .rank-3 { color: #CD7F32; font-size: 1.1em; }
+
+        .user-info {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            padding-left: 10px;
+        }
+
+        .username {
+            font-weight: bold;
+            color: #fff;
+        }
+
+        .stats {
+            font-size: 0.8em;
+            color: #ccc;
+        }
+
+        .shiny-icon {
+            color: cyan;
+        }
     </style>
 </head>
 <body>
@@ -156,10 +232,18 @@
 
     <div id="notification"></div>
 
+    <!-- Leaderboard Container -->
+    <div id="leaderboard" class="leaderboard hidden">
+        <div class="leaderboard-header">🏆 Top Collectors</div>
+        <div id="leaderboard-list"></div>
+    </div>
+
     <script>
         const ws = new WebSocket("ws://localhost:8765");
         const lootContainer = document.getElementById("loot-container");
         const notification = document.getElementById("notification");
+        const leaderboard = document.getElementById("leaderboard");
+        const leaderboardList = document.getElementById("leaderboard-list");
 
         ws.onopen = () => {
             console.log("✅ Connected to overlay server");
@@ -177,6 +261,8 @@
                 if (data.show_banner) {
                     showNotification(data);
                 }
+            } else if (data.event === "leaderboard_update") {
+                updateLeaderboard(data);
             }
         };
 
@@ -187,6 +273,32 @@
         ws.onclose = () => {
             console.log("🔌 Disconnected from overlay server");
         };
+
+        function updateLeaderboard(data) {
+            if (data.show) {
+                leaderboard.classList.remove("hidden");
+            } else {
+                leaderboard.classList.add("hidden");
+                return;
+            }
+
+            leaderboardList.innerHTML = "";
+            data.data.forEach(player => {
+                const item = document.createElement("div");
+                item.className = "leaderboard-item";
+                
+                const rankClass = player.rank <= 3 ? `rank-${player.rank}` : "";
+                
+                item.innerHTML = `
+                    <div class="rank ${rankClass}">#${player.rank}</div>
+                    <div class="user-info">
+                        <span class="username">${player.username}</span>
+                        <span class="stats">Score: ${player.score} | <span class="shiny-icon">💎</span> ${player.shinies}</span>
+                    </div>
+                `;
+                leaderboardList.appendChild(item);
+            });
+        }
 
         function animateLoot(data) {
             console.log("🎨 Animating loot:", data.item);

@@ -5,6 +5,7 @@ import random
 import os
 import glob
 import sys
+import shutil
 import ctypes
 from ctypes import windll, byref, c_int
 from datetime import datetime
@@ -222,6 +223,23 @@ def format_item_name(filename):
         name = name[10:]
         
     return name.replace("_", " ").replace("-", " ").strip().title()
+
+def get_leaderboard_message(show):
+    sorted_players = sorted(player_data.items(), key=lambda x: x[1]['loot_score'], reverse=True)[:10]
+    leaderboard_data = []
+    for rank, (username, data) in enumerate(sorted_players, 1):
+        leaderboard_data.append({
+            "rank": rank,
+            "username": username,
+            "score": data['loot_score'],
+            "shinies": data.get('shinies', 0)
+        })
+    
+    return {
+        "event": "leaderboard_update",
+        "show": show,
+        "data": leaderboard_data
+    }
 
 # ============ WEBSOCKET SERVER ============
 overlay_clients = set()
@@ -589,6 +607,10 @@ class ChatCollectBot(commands.Bot):
         player_data[username]['last_loot_time'] = now
         await db.save()
 
+        # Update Leaderboard if enabled
+        if self.config.get('show_leaderboard', False):
+            await broadcast_to_overlays(get_leaderboard_message(True))
+
         ranked_up = old_rank_title != new_rank_title
         
         trigger_explosion = ranked_up or (rarity == "shiny") or (rarity == "golden") or is_legendary_item or (critic_bonus > 0)
@@ -608,7 +630,8 @@ class ChatCollectBot(commands.Bot):
                     if participant in player_data:
                         player_data[participant]['prestige_stars'] = player_data[participant].get('prestige_stars', 0) + 1
                 await db.save()
-            elif self.loot_drive_current % 10 == 0: # Notify every 10 items
+            else:
+                 # Always show progress if active
                  loot_drive_msg = f" ({evts['loot_drive_name']}: {self.loot_drive_current}/{self.loot_drive_target})"
             self._send_status_update()
 
@@ -874,6 +897,16 @@ class BotThread(QThread):
     def set_show_banner(self, enabled):
         if self.bot:
             self.bot.set_show_banner(enabled)
+
+    def send_leaderboard_update(self, show_leaderboard):
+        if not self.loop:
+            return
+
+        async def _send():
+            message = get_leaderboard_message(show_leaderboard)
+            await broadcast_to_overlays(message)
+
+        self.loop.call_soon_threadsafe(lambda: self.loop.create_task(_send()))
         
     def run(self):
         try:
@@ -888,6 +921,10 @@ class BotThread(QThread):
             self.bot = ChatCollectBot(self.token, self.channel, self.log, self.update_status, self.config)
             self.bot.set_show_banner(self.show_banner)
             bot_task = self.loop.create_task(self.bot.start())
+            
+            # Initial Leaderboard
+            if self.config.get('show_leaderboard', False):
+                 self.send_leaderboard_update(True)
             
             self.loop.run_until_complete(asyncio.gather(overlay_task, bot_task))
         except Exception as e:
@@ -1117,10 +1154,17 @@ class ChatCollectGUI(QMainWindow):
         # Overlay Settings (Between Test and Events)
         overlay_group = QGroupBox("Overlay Settings")
         overlay_layout = QHBoxLayout()
-        self.show_banner_cb = QCheckBox("Show Banner in Overlay")
+        
+        self.show_banner_cb = QCheckBox("Show Banner")
         self.show_banner_cb.setChecked(self.config.get('show_banner', True))
         self.show_banner_cb.stateChanged.connect(self.toggle_banner)
         overlay_layout.addWidget(self.show_banner_cb)
+        
+        self.show_leaderboard_cb = QCheckBox("Show Leaderboard")
+        self.show_leaderboard_cb.setChecked(self.config.get('show_leaderboard', False))
+        self.show_leaderboard_cb.stateChanged.connect(self.toggle_leaderboard)
+        overlay_layout.addWidget(self.show_leaderboard_cb)
+        
         overlay_group.setLayout(overlay_layout)
         layout.addWidget(overlay_group)
 
@@ -1292,6 +1336,13 @@ class ChatCollectGUI(QMainWindow):
         # --- Messages Tab ---
         msg_tab = QWidget()
         msg_layout = QVBoxLayout()
+        
+        # Syntax Help Button
+        help_btn = QPushButton("❓ Syntax Help")
+        help_btn.clicked.connect(self.show_syntax_help)
+        help_btn.setStyleSheet("background-color: #00BCD4; color: white; font-weight: bold;")
+        msg_layout.addWidget(help_btn)
+
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll_content = QWidget()
@@ -1462,6 +1513,23 @@ class ChatCollectGUI(QMainWindow):
         data_group.setLayout(data_layout)
         layout.addWidget(data_group)
         
+        # Backup & Restore Group
+        backup_group = QGroupBox("Backup & Restore")
+        backup_layout = QHBoxLayout()
+        
+        self.backup_btn = QPushButton("📂 Backup Config")
+        self.backup_btn.clicked.connect(self.backup_config)
+        self.backup_btn.setStyleSheet("background-color: #2196F3; color: white;")
+        backup_layout.addWidget(self.backup_btn)
+        
+        self.restore_btn = QPushButton("♻️ Restore Config")
+        self.restore_btn.clicked.connect(self.restore_config)
+        self.restore_btn.setStyleSheet("background-color: #FF9800; color: white;")
+        backup_layout.addWidget(self.restore_btn)
+        
+        backup_group.setLayout(backup_layout)
+        layout.addWidget(backup_group)
+        
         # Game Balance Group
         balance_group = QGroupBox("Game Balance")
         balance_layout = QGridLayout()
@@ -1514,6 +1582,59 @@ class ChatCollectGUI(QMainWindow):
         
         layout.addStretch()
 
+    def show_syntax_help(self):
+        help_text = """
+        <h3>Available Placeholders:</h3>
+        <ul>
+        <li><b>{username}</b>: The name of the user who triggered the event.</li>
+        <li><b>{item}</b>: The name of the looted item.</li>
+        <li><b>{points}</b>: The number of points gained.</li>
+        <li><b>{rank}</b>: The user's current rank title.</li>
+        <li><b>{score}</b>: The user's total score.</li>
+        <li><b>{remaining}</b>: Seconds remaining for cooldowns.</li>
+        <li><b>{target}</b>: The target goal for Loot Drive.</li>
+        <li><b>{command}</b>: The command name (e.g., !contest).</li>
+        <li><b>{prize}</b>: The prize amount for contests.</li>
+        </ul>
+        <br>
+        <i>Note: Not all placeholders work for every message.</i>
+        """
+        QMessageBox.information(self, "Message Syntax Help", help_text)
+
+    def backup_config(self):
+        try:
+            backup_dir = os.path.join(os.getcwd(), "backups")
+            if not os.path.exists(backup_dir):
+                os.makedirs(backup_dir)
+            
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            backup_file = os.path.join(backup_dir, f"config_backup_{timestamp}.json")
+            
+            shutil.copy2(CONFIG_FILE, backup_file)
+            self.log(f"✅ Configuration backed up to: {backup_file}")
+            QMessageBox.information(self, "Backup Successful", f"Backup created:\n{backup_file}")
+        except Exception as e:
+            self.log(f"❌ Backup failed: {e}")
+            QMessageBox.critical(self, "Backup Failed", str(e))
+
+    def restore_config(self):
+        backup_dir = os.path.join(os.getcwd(), "backups")
+        if not os.path.exists(backup_dir):
+            os.makedirs(backup_dir)
+            
+        file_path, _ = QFileDialog.getOpenFileName(self, "Select Backup File", backup_dir, "JSON Files (*.json)")
+        
+        if file_path:
+            try:
+                shutil.copy2(file_path, CONFIG_FILE)
+                self.config = self.load_config()
+                
+                self.log(f"✅ Configuration restored from: {file_path}")
+                QMessageBox.information(self, "Restore Successful", "Configuration restored! Please restart the application to ensure all settings take effect.")
+            except Exception as e:
+                self.log(f"❌ Restore failed: {e}")
+                QMessageBox.critical(self, "Restore Failed", str(e))
+
     def apply_theme(self, theme_name):
         self.config['theme'] = theme_name
         if theme_name == "Light Mode":
@@ -1539,6 +1660,13 @@ class ChatCollectGUI(QMainWindow):
             self.output_dir_input.setText(directory)
             self.config['output_dir'] = directory
             self.save_configuration()
+
+    def toggle_leaderboard(self, state):
+        enabled = state == Qt.Checked
+        self.config['show_leaderboard'] = enabled
+        self.save_configuration()
+        if self.bot_thread:
+            self.bot_thread.send_leaderboard_update(enabled)
 
     def save_settings_change(self):
         self.save_configuration()
