@@ -1,68 +1,68 @@
 {
     "commands": {
-        "loot": "!bake",
-        "leaderboard": "!topbakers",
-        "contest": "!bakeoff",
-        "use": "!eat"
+        "loot": "!loot",
+        "leaderboard": "!leaderboard",
+        "contest": "!contest",
+        "use": "!use"
     },
     "messages": {
-        "cooldown": "⏳ @{username}, oven cooling... wait {remaining}s.",
-        "loot_success": "🍞 @{username} baked a {item}! (+{points} pts) ({rank}) | Score: {score}",
-        "loot_legendary": "✨ @{username} baked a LEGENDARY {item}! (+{points} pts) ({rank}) | Score: {score}",
-        "rank_up": "🎉 {username} promoted to {rank}!",
-        "contest_start": "⚔️ A Bake Off is starting soon! Type {command} to participate! Entry fee: 10 pts. Winner takes all!",
-        "contest_winner": "🏆 BAKE OFF WINNER: @{username}! They won {prize} points! 🏆",
-        "rush_hour_start": "🚀 The Rush Hour has started! Cooldowns are reduced to 10 seconds!",
-        "loot_drive_start": "🍪 Catering Order: {target} Baked Goods needed! The Bake Sale has started!",
-        "bounty_hunter_spawn": "🧐 The Food Critic has entered the chat! They crave a {item}!",
-        "bounty_hunter_satisfied": "🧐 {username} satisfied the Food Critic! (+{points} pts)"
+        "cooldown": "\u23f3 @{username}, resting...... wait {remaining}s.",
+        "loot_success": "\ud83c\udf5e @{username} looted a {item}! (+{points} pts) ({rank}) | Score: {score}",
+        "loot_legendary": "\u2728 @{username} looted a LEGENDARY {item}! \u2728 (+{points} pts) ({rank}) | Score: {score}",
+        "rank_up": "\ud83c\udf89 {username} ranked up to {rank}!",
+        "contest_start": "\u2694\ufe0f CONTEST STARTED! Type {command} to enter! (Entry: 50 pts)",
+        "contest_winner": "\ud83c\udfc6 {username} WON THE CONTEST! Prize: {prize} pts!",
+        "rush_hour_start": "\ud83d\ude80 RUSH HOUR STARTED! 2x Points for 60 seconds!",
+        "loot_drive_start": "\ud83c\udf92 LOOT DRIVE STARTED! Community Goal: {target} Items!",
+        "bounty_hunter_spawn": "\ud83e\uddd0 BOUNTY HUNTER ARRIVED! He wants a {item}!",
+        "bounty_hunter_satisfied": "\ud83e\uddd0 {username} satisfied the Bounty Hunter! (+{points} pts)"
     },
     "events": {
         "rush_hour_name": "Rush Hour",
-        "loot_drive_name": "Bake Sale",
-        "bounty_hunter_name": "Food Critic",
-        "contest_name": "Bake Off"
+        "loot_drive_name": "Loot Run",
+        "bounty_hunter_name": "Bounty Hunter",
+        "contest_name": "Contest"
     },
     "ranks": [
         {
             "score": 0,
-            "title": "Floury Beginner"
+            "title": "Novice Collector"
         },
         {
             "score": 50,
-            "title": "Amateur Baker"
+            "title": "Rookie Scavenger"
         },
         {
             "score": 250,
-            "title": "Pastry Apprentice"
+            "title": "Apprentice Hunter"
         },
         {
             "score": 750,
-            "title": "Dough Master"
+            "title": "Loot Specialist"
         },
         {
             "score": 2000,
-            "title": "Dessert Virtuoso"
+            "title": "Treasure Expert"
         },
         {
             "score": 5000,
-            "title": "Oven Overlord"
+            "title": "Hoard Master"
         },
         {
             "score": 10000,
-            "title": "Legendary Patissier"
+            "title": "Legendary Collector"
         },
         {
             "score": 25000,
-            "title": "Yeast Beast"
+            "title": "Artifact Hunter"
         },
         {
             "score": 50000,
-            "title": "Celestial Confectioner"
+            "title": "Celestial Hoarder"
         },
         {
             "score": 100000,
-            "title": "God of Grain"
+            "title": "God of Loot"
         }
     ],
     "token": "",
@@ -70,7 +70,7 @@
     "show_banner": true,
     "theme": "Dark Mode",
     "font_family": "Segoe UI",
-    "font_size": 11,
+    "font_size": 14,
     "output_dir": "C:\\Users\\Voker\\OneDrive\\Desktop\\ChatCollect",
     "autosave_interval": 5,
     "cooldown": 60,

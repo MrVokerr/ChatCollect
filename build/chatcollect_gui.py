@@ -21,10 +21,11 @@ import websockets
 from twitchio.ext import commands
 
 # ============ VERSION & UPDATE CONFIG ============
-CURRENT_VERSION = "1.0.5"
+CURRENT_VERSION = "1.0.6"
 # REPLACE THESE WITH YOUR ACTUAL GITHUB URLs
 UPDATE_VERSION_URL = "https://raw.githubusercontent.com/MrVokerr/ChatCollect/main/version.txt"
 UPDATE_EXE_URL = "https://github.com/MrVokerr/ChatCollect/releases/latest/download/ChatCollect.exe"
+REPO_RAW_URL = "https://raw.githubusercontent.com/MrVokerr/ChatCollect/main/"
 
 # ============ PATH CONFIGURATION ============
 if getattr(sys, 'frozen', False):
@@ -53,6 +54,9 @@ DEFAULT_CONFIG = {
         "cooldown": "⏳ @{username}, resting...... wait {remaining}s.",
         "loot_success": "🍞 @{username} looted a {item}! (+{points} pts) ({rank}) | Score: {score}",
         "loot_legendary": "✨ @{username} looted a LEGENDARY {item}! ✨ (+{points} pts) ({rank}) | Score: {score}",
+        "loot_ruined": "🔥 @{username} tried to loot a {item} but fell asleep! It's RUINED! (0 pts)",
+        "loot_shiny": "💎✨ SHINY!! @{username} looted a SHINY {item}! Unlocked a Badge! (+{points} pts)",
+        "loot_golden": "🌟 MASTERPIECE! @{username} looted a GOLDEN {item}! (+{points} pts)",
         "rank_up": "🎉 {username} ranked up to {rank}!",
         "contest_start": "⚔️ CONTEST STARTED! Type {command} to enter! (Entry: 50 pts)",
         "contest_winner": "🏆 {username} WON THE CONTEST! Prize: {prize} pts!",
@@ -150,6 +154,7 @@ class PlayerDatabase:
     def __init__(self, filepath):
         self.filepath = filepath
         self.players = {}
+        self._last_mtime = 0
         self.load()
 
     def load(self):
@@ -157,7 +162,11 @@ class PlayerDatabase:
             return
         
         try:
+            current_mtime = os.path.getmtime(self.filepath)
+            self._last_mtime = current_mtime
+            
             with open(self.filepath, 'r', encoding='utf-8') as f:
+                loaded_players = {}
                 for line in f:
                     line = line.strip()
                     if not line or line.startswith('#'):
@@ -166,7 +175,7 @@ class PlayerDatabase:
                     if len(parts) >= 3:
                         username = parts[0].strip()
                         try:
-                            self.players[username] = {
+                            loaded_players[username] = {
                                 'loot_score': int(parts[1].strip()),
                                 'last_loot_time': float(parts[2].strip()),
                                 'luck': float(parts[3].strip()) if len(parts) >= 4 else 0.0,
@@ -176,13 +185,39 @@ class PlayerDatabase:
                             }
                         except ValueError:
                             continue
+                
+                # Update existing dictionary to preserve references
+                self.players.clear()
+                self.players.update(loaded_players)
+                print(f"✅ Database loaded. {len(self.players)} players.")
+                
         except Exception as e:
             print(f"⚠️ Warning: Could not load database: {e}")
+            try:
+                shutil.copy2(self.filepath, self.filepath + ".corrupt_backup")
+                print(f"⚠️ Created backup of corrupted database: {self.filepath}.corrupt_backup")
+            except:
+                pass
+
+    def reload_if_needed(self):
+        """Reloads the database if the file has changed on disk"""
+        if not os.path.exists(self.filepath):
+            return
+        
+        try:
+            current_mtime = os.path.getmtime(self.filepath)
+            if current_mtime > self._last_mtime:
+                print("🔄 File changed externally, reloading database...")
+                self.load()
+        except Exception as e:
+            print(f"⚠️ Error checking file update: {e}")
 
     def save_blocking(self):
         """Blocking save for use in executor"""
         try:
-            with open(self.filepath, 'w', encoding='utf-8') as f:
+            # Write to temp file first to prevent corruption
+            temp_file = self.filepath + ".tmp"
+            with open(temp_file, 'w', encoding='utf-8') as f:
                 f.write("# ChatCollect Player Database - Edit with Notepad\n")
                 f.write("# Format: username | loot_score | last_loot_time | luck | last_use_time | prestige_stars | shinies\n")
                 f.write("# WARNING: Keep the | separators intact!\n\n")
@@ -192,6 +227,15 @@ class PlayerDatabase:
                     f.write(f"{username} | {data['loot_score']} | {data['last_loot_time']} | "
                             f"{data.get('luck', 0.0)} | {data.get('last_use_time', 0.0)} | "
                             f"{data.get('prestige_stars', 0)} | {data.get('shinies', 0)}\n")
+            
+            # Atomic replace
+            if os.path.exists(self.filepath):
+                os.replace(temp_file, self.filepath)
+            else:
+                os.rename(temp_file, self.filepath)
+            
+            # Update mtime so we don't reload our own save
+            self._last_mtime = os.path.getmtime(self.filepath)
                 
         except Exception as e:
             print(f"❌ Error saving database: {e}")
@@ -446,6 +490,9 @@ class ChatCollectBot(commands.Bot):
                 
                 elif self.contest_state == "resolving":
                     if now > self.contest_resolve_time:
+                        # Reload DB before awarding prize
+                        db.reload_if_needed()
+                        
                         winner = random.choice(self.contest_participants)
                         if winner in player_data:
                             player_data[winner]['loot_score'] += self.contest_pool
@@ -474,6 +521,9 @@ class ChatCollectBot(commands.Bot):
                 await asyncio.sleep(5)
 
     async def cmd_use(self, ctx):
+        # Reload DB if changed externally
+        db.reload_if_needed()
+        
         username = ctx.author.name.lower()
         parts = ctx.message.content.split()
         amount = 1
@@ -519,6 +569,9 @@ class ChatCollectBot(commands.Bot):
         await ctx.send(f"🍽️ @{username} used {amount} points! Luck increased by {int(added_luck)}% (Total: {int(new_luck)}%). Good luck on your next loot!")
 
     async def cmd_loot(self, ctx):
+        # Reload DB if changed externally
+        db.reload_if_needed()
+        
         username = ctx.author.name.lower()
         now = time.time()
         
@@ -657,13 +710,18 @@ class ChatCollectBot(commands.Bot):
         # Construct Message
         msg = ""
         if rarity == "ruined":
-            msg = f"🔥 @{username} tried to loot a {item_display_name} but fell asleep! It's RUINED! (0 pts)"
+            base_msg = msgs.get("loot_ruined", DEFAULT_CONFIG["messages"]["loot_ruined"])
+            msg = base_msg.format(username=username, item=item_display_name)
             self.log_callback(f"🔥 {username} ruined a {item_display_name}")
         elif rarity == "shiny":
-            msg = f"💎✨ SHINY!! @{username} looted a SHINY {item_display_name}! Unlocked a Badge! (+{points_gained} pts){critic_msg}{loot_drive_msg}"
+            base_msg = msgs.get("loot_shiny", DEFAULT_CONFIG["messages"]["loot_shiny"])
+            msg = base_msg.format(username=username, item=item_display_name, points=points_gained)
+            msg += f"{critic_msg}{loot_drive_msg}"
             self.log_callback(f"💎 {username} got a SHINY {item_display_name}")
         elif rarity == "golden":
-            msg = f"🌟 MASTERPIECE! @{username} looted a GOLDEN {item_display_name}! (+{points_gained} pts){critic_msg}{loot_drive_msg}"
+            base_msg = msgs.get("loot_golden", DEFAULT_CONFIG["messages"]["loot_golden"])
+            msg = base_msg.format(username=username, item=item_display_name, points=points_gained)
+            msg += f"{critic_msg}{loot_drive_msg}"
             self.log_callback(f"🌟 {username} got a GOLDEN {item_display_name}")
         else:
             # Standard
@@ -695,6 +753,8 @@ class ChatCollectBot(commands.Bot):
         await broadcast_to_overlays(message)
 
     async def cmd_leaderboard(self, ctx):
+        # Reload DB if changed externally
+        db.reload_if_needed()
         self.log_callback(f"📊 Leaderboard requested by {ctx.author.name}")
         await self.send_leaderboard_to_chat(ctx)
 
@@ -825,6 +885,9 @@ class ChatCollectBot(commands.Bot):
             await channel.send(f"🛑 The {evts['bounty_hunter_name']} has left the chat.")
 
     async def cmd_contest(self, ctx):
+        # Reload DB if changed externally
+        db.reload_if_needed()
+
         if self.contest_state != "joining":
             return
         
@@ -1627,7 +1690,8 @@ class ChatCollectGUI(QMainWindow):
         int_validator = QIntValidator(1, 9999)
 
         # Rush Hour
-        events_layout.addWidget(QLabel("🚀 Rush Hour"), 0, 0)
+        self.rh_label = QLabel("🚀 Rush Hour")
+        events_layout.addWidget(self.rh_label, 0, 0)
         self.rh_duration = QLineEdit("2")
         self.rh_duration.setValidator(int_validator)
         self.rh_duration.setFixedWidth(50)
@@ -1646,7 +1710,8 @@ class ChatCollectGUI(QMainWindow):
         events_layout.addWidget(self.stop_rh_btn, 0, 4)
         
         # Loot Drive
-        events_layout.addWidget(QLabel("🎒 Loot Drive"), 1, 0)
+        self.ld_label = QLabel("🎒 Loot Drive")
+        events_layout.addWidget(self.ld_label, 1, 0)
         self.bs_duration = QLineEdit("20")
         self.bs_duration.setValidator(int_validator)
         self.bs_duration.setFixedWidth(50)
@@ -1665,7 +1730,8 @@ class ChatCollectGUI(QMainWindow):
         events_layout.addWidget(self.stop_bs_btn, 1, 4)
         
         # Bounty Hunter
-        events_layout.addWidget(QLabel("🧐 Bounty Hunter"), 2, 0)
+        self.bh_label = QLabel("🧐 Bounty Hunter")
+        events_layout.addWidget(self.bh_label, 2, 0)
         self.fc_duration = QLineEdit("10")
         self.fc_duration.setValidator(int_validator)
         self.fc_duration.setFixedWidth(50)
@@ -1684,7 +1750,8 @@ class ChatCollectGUI(QMainWindow):
         events_layout.addWidget(self.stop_fc_btn, 2, 4)
         
         # Contest
-        events_layout.addWidget(QLabel("⚔️ Contest"), 3, 0)
+        self.ct_label = QLabel("⚔️ Contest")
+        events_layout.addWidget(self.ct_label, 3, 0)
         self.bo_duration = QLineEdit("2")
         self.bo_duration.setValidator(int_validator)
         self.bo_duration.setFixedWidth(50)
@@ -1711,7 +1778,8 @@ class ChatCollectGUI(QMainWindow):
 
         # Rush Hour Status
         rh_layout = QVBoxLayout()
-        rh_layout.addWidget(QLabel("🚀 Rush Hour"))
+        self.rh_status_header = QLabel("🚀 Rush Hour")
+        rh_layout.addWidget(self.rh_status_header)
         self.rh_status_label = QLabel("Inactive")
         self.rh_status_label.setObjectName("statusLabel")
         rh_layout.addWidget(self.rh_status_label)
@@ -1719,7 +1787,8 @@ class ChatCollectGUI(QMainWindow):
 
         # Loot Drive Status
         bs_layout = QVBoxLayout()
-        bs_layout.addWidget(QLabel("🎒 Loot Drive"))
+        self.ld_status_header = QLabel("🎒 Loot Drive")
+        bs_layout.addWidget(self.ld_status_header)
         self.bs_status_label = QLabel("Inactive")
         self.bs_status_label.setObjectName("statusLabel")
         bs_layout.addWidget(self.bs_status_label)
@@ -1727,7 +1796,8 @@ class ChatCollectGUI(QMainWindow):
 
         # Bounty Hunter Status
         fc_layout = QVBoxLayout()
-        fc_layout.addWidget(QLabel("🧐 Bounty Hunter"))
+        self.bh_status_header = QLabel("🧐 Bounty Hunter")
+        fc_layout.addWidget(self.bh_status_header)
         self.fc_status_label = QLabel("Inactive")
         self.fc_status_label.setObjectName("statusLabel")
         fc_layout.addWidget(self.fc_status_label)
@@ -1735,7 +1805,8 @@ class ChatCollectGUI(QMainWindow):
 
         # Contest Status
         bo_layout = QVBoxLayout()
-        bo_layout.addWidget(QLabel("⚔️ Contest"))
+        self.ct_status_header = QLabel("⚔️ Contest")
+        bo_layout.addWidget(self.ct_status_header)
         self.bo_status_label = QLabel("Inactive")
         self.bo_status_label.setObjectName("statusLabel")
         bo_layout.addWidget(self.bo_status_label)
@@ -1764,6 +1835,9 @@ class ChatCollectGUI(QMainWindow):
         
         self.log("🍞 ChatCollect Bot GUI Ready")
         self.log("Configure your settings and click 'Start Bot'")
+        
+        # Initial Label Update
+        self.update_event_labels()
 
     def setup_setup_tab(self):
         layout = QVBoxLayout(self.tab_setup)
@@ -1802,6 +1876,9 @@ class ChatCollectGUI(QMainWindow):
         self.add_config_input(scroll_layout, "messages", "cooldown", "Cooldown Message:")
         self.add_config_input(scroll_layout, "messages", "loot_success", "Loot Success:")
         self.add_config_input(scroll_layout, "messages", "loot_legendary", "Legendary Loot:")
+        self.add_config_input(scroll_layout, "messages", "loot_ruined", "Loot Ruined:")
+        self.add_config_input(scroll_layout, "messages", "loot_shiny", "Loot Shiny:")
+        self.add_config_input(scroll_layout, "messages", "loot_golden", "Loot Golden (Masterpiece):")
         self.add_config_input(scroll_layout, "messages", "rank_up", "Rank Up:")
         self.add_config_input(scroll_layout, "messages", "contest_start", "Contest Start:")
         self.add_config_input(scroll_layout, "messages", "contest_winner", "Contest Winner:")
@@ -2140,10 +2217,36 @@ class ChatCollectGUI(QMainWindow):
         # 1. Create Backup (Keep max 2)
         self.manage_auto_backups()
         
-        # 2. Download new EXE
         try:
+            # 2. Download Additional Files (README, Overlay, Build folder)
+            self.log("⬇️ Downloading updated files...")
+            files_to_update = [
+                "README.md",
+                "overlay/overlay.html",
+                "build/chatcollect_gui.py",
+                "build/requirements.txt",
+                "build/build_exe.bat",
+                "build/install_requirements.bat",
+                "build/exe_icon.ico"
+            ]
+            
+            for file_path in files_to_update:
+                url = REPO_RAW_URL + file_path
+                local_path = os.path.join(BASE_PATH, file_path)
+                
+                # Ensure directory exists
+                os.makedirs(os.path.dirname(local_path), exist_ok=True)
+                
+                try:
+                    self.log(f"   Downloading {file_path}...")
+                    with urllib.request.urlopen(url) as response, open(local_path, 'wb') as out_file:
+                        shutil.copyfileobj(response, out_file)
+                except Exception as e:
+                    self.log(f"⚠️ Failed to update {file_path}: {e}")
+
+            # 3. Download new EXE
             new_exe_name = "ChatCollect_new.exe"
-            self.log("⬇️ Downloading new version...")
+            self.log("⬇️ Downloading new executable...")
             
             # Download with progress (blocking UI for simplicity, or use thread)
             # Using urllib for simplicity
@@ -2152,7 +2255,7 @@ class ChatCollectGUI(QMainWindow):
                 
             self.log("✅ Download complete.")
             
-            # 3. Create Updater Script
+            # 4. Create Updater Script
             updater_bat = "update_restart.bat"
             current_exe = sys.executable
             
@@ -2165,7 +2268,7 @@ class ChatCollectGUI(QMainWindow):
             
             self.log("🚀 Restarting to apply update...")
             
-            # 4. Launch Updater and Exit
+            # 5. Launch Updater and Exit
             subprocess.Popen([updater_bat], shell=True)
             QApplication.quit()
             
@@ -2290,6 +2393,11 @@ class ChatCollectGUI(QMainWindow):
             self.log(f"✅ Configuration loaded from: {file_path}")
             self.toast.show_message("✅ Configuration Loaded!")
             
+            QMessageBox.information(self, "Restart Required", 
+                                    "Configuration loaded successfully!\n\n"
+                                    "If you have changed Commands, Events, or other core settings, "
+                                    "please restart the application for changes to take full effect.")
+            
         except Exception as e:
             self.log(f"❌ Error loading config: {e}")
             QMessageBox.critical(self, "Error", f"Failed to load config: {e}")
@@ -2339,6 +2447,22 @@ class ChatCollectGUI(QMainWindow):
         self.apply_theme(self.config.get('theme', 'Dark Mode'))
         self.apply_font()
     
+    def update_event_labels(self):
+        """Update event labels based on current config"""
+        evts = self.config.get("events", DEFAULT_CONFIG["events"])
+        
+        # Update Collection Tab Labels
+        self.rh_label.setText(f"🚀 {evts.get('rush_hour_name', 'Rush Hour')}")
+        self.ld_label.setText(f"🎒 {evts.get('loot_drive_name', 'Loot Drive')}")
+        self.bh_label.setText(f"🧐 {evts.get('bounty_hunter_name', 'Bounty Hunter')}")
+        self.ct_label.setText(f"⚔️ {evts.get('contest_name', 'Contest')}")
+        
+        # Update Status Header Labels
+        self.rh_status_header.setText(f"🚀 {evts.get('rush_hour_name', 'Rush Hour')}")
+        self.ld_status_header.setText(f"🎒 {evts.get('loot_drive_name', 'Loot Drive')}")
+        self.bh_status_header.setText(f"🧐 {evts.get('bounty_hunter_name', 'Bounty Hunter')}")
+        self.ct_status_header.setText(f"⚔️ {evts.get('contest_name', 'Contest')}")
+
     def save_configuration(self):
         # Update current config with UI values
         self.config['token'] = self.token_input.text()
@@ -2389,6 +2513,9 @@ class ChatCollectGUI(QMainWindow):
             if self.bot_thread and self.bot_thread.bot:
                 self.bot_thread.bot.config = self.config
                 self.log("🔄 Bot configuration updated live!")
+            
+            # Update UI Labels
+            self.update_event_labels()
 
             # Only show message box if triggered manually (not by auto-save or spinbox change)
             if isinstance(self.sender(), QPushButton):
