@@ -21,7 +21,7 @@ import websockets
 from twitchio.ext import commands
 
 # ============ VERSION & UPDATE CONFIG ============
-CURRENT_VERSION = "1.0.3"
+CURRENT_VERSION = "1.0.5"
 # REPLACE THESE WITH YOUR ACTUAL GITHUB URLs
 UPDATE_VERSION_URL = "https://raw.githubusercontent.com/MrVokerr/ChatCollect/main/version.txt"
 UPDATE_EXE_URL = "https://github.com/MrVokerr/ChatCollect/releases/latest/download/ChatCollect.exe"
@@ -1013,7 +1013,7 @@ class ToggleSwitch(QCheckBox):
 
         # Draw Text
         if self.text():
-            p.setPen(QColor("#e0e0e0"))
+            p.setPen(self.palette().text().color())
             p.setFont(self.font())
             text_rect = QRectF(sw_width + 10, 0, self.width() - sw_width - 10, self.height())
             p.drawText(text_rect, Qt.AlignLeft | Qt.AlignVCenter, self.text())
@@ -1098,7 +1098,7 @@ class ChatCollectGUI(QMainWindow):
                 border: 1px solid #333;
                 border-radius: 8px;
                 margin-top: 20px;
-                padding-top: 15px;
+                padding-top: 10px;
                 font-weight: bold;
                 color: #ffffff;
             }
@@ -1202,9 +1202,9 @@ class ChatCollectGUI(QMainWindow):
             QComboBox::down-arrow {
                 width: 0; 
                 height: 0; 
-                border-left: 5px solid transparent;
-                border-right: 5px solid transparent;
-                border-top: 5px solid #e0e0e0;
+                border-left: 6px solid transparent;
+                border-right: 6px solid transparent;
+                border-top: 6px solid #e0e0e0;
                 margin-top: 2px;
             }
             QComboBox QAbstractItemView {
@@ -1219,6 +1219,196 @@ class ChatCollectGUI(QMainWindow):
                 selection-background-color: #007acc;
                 outline: none;
             }
+            QPushButton#startBtn { background-color: #2ecc71; }
+            QPushButton#startBtn:hover { background-color: #27ae60; }
+            QPushButton#startBtn:pressed { background-color: #1e8449; }
+
+            QPushButton#stopBtn { background-color: #e74c3c; }
+            QPushButton#stopBtn:hover { background-color: #c0392b; }
+            QPushButton#stopBtn:pressed { background-color: #922b21; }
+
+            QPushButton#testExplosionBtn { background-color: #e67e22; }
+            QPushButton#testExplosionBtn:hover { background-color: #d35400; }
+            QPushButton#testExplosionBtn:pressed { background-color: #a04000; }
+
+            QPushButton#testLegendaryBtn { background-color: #f1c40f; color: #2c3e50; }
+            QPushButton#testLegendaryBtn:hover { background-color: #f39c12; }
+            QPushButton#testLegendaryBtn:pressed { background-color: #d68910; }
+
+            QPushButton#customTestBtn { background-color: #3498db; }
+            QPushButton#customTestBtn:hover { background-color: #2980b9; }
+            QPushButton#customTestBtn:pressed { background-color: #21618c; }
+
+            QPushButton#rushHourBtn { background-color: #e91e63; }
+            QPushButton#rushHourBtn:hover { background-color: #c2185b; }
+            QPushButton#rushHourBtn:pressed { background-color: #880e4f; }
+
+            QPushButton#lootDriveBtn { background-color: #9c27b0; }
+            QPushButton#lootDriveBtn:hover { background-color: #7b1fa2; }
+            QPushButton#lootDriveBtn:pressed { background-color: #4a148c; }
+
+            QPushButton#bountyHunterBtn { background-color: #607d8b; }
+            QPushButton#bountyHunterBtn:hover { background-color: #455a64; }
+            QPushButton#bountyHunterBtn:pressed { background-color: #263238; }
+
+            QPushButton#contestBtn { background-color: #ff5722; }
+            QPushButton#contestBtn:hover { background-color: #e64a19; }
+            QPushButton#contestBtn:pressed { background-color: #bf360c; }
+
+            QPushButton#backupBtn { background-color: #2196f3; }
+            QPushButton#backupBtn:hover { background-color: #1976d2; }
+            QPushButton#backupBtn:pressed { background-color: #0d47a1; }
+
+            QPushButton#restoreBtn { background-color: #ff9800; }
+            QPushButton#restoreBtn:hover { background-color: #f57c00; }
+            QPushButton#restoreBtn:pressed { background-color: #e65100; }
+
+            QPushButton#saveBtn { background-color: #4caf50; }
+            QPushButton#saveBtn:hover { background-color: #388e3c; }
+            QPushButton#saveBtn:pressed { background-color: #1b5e20; }
+            
+            QPushButton#helpBtn { background-color: #00bcd4; }
+            QPushButton#helpBtn:hover { background-color: #0097a7; }
+            QPushButton#helpBtn:pressed { background-color: #006064; }
+
+            QPushButton#delBtn { background-color: #d32f2f; }
+            QPushButton#delBtn:hover { background-color: #b71c1c; }
+            QPushButton#delBtn:pressed { background-color: #c62828; }
+        """
+
+    def get_light_stylesheet(self):
+        return """
+            QMainWindow {
+                background-color: #f0f0f0;
+            }
+            QWidget {
+                background-color: #f0f0f0;
+                color: #333333;
+                font-family: 'Segoe UI', sans-serif;
+                font-size: 10pt;
+            }
+            QGroupBox {
+                background-color: #ffffff;
+                border: 1px solid #ccc;
+                border-radius: 8px;
+                margin-top: 20px;
+                padding-top: 10px;
+                font-weight: bold;
+                color: #333333;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                subcontrol-position: top left;
+                left: 15px;
+                padding: 0 5px;
+                background-color: #ffffff; 
+            }
+            QLabel {
+                color: #333333;
+                background-color: transparent;
+            }
+            QLineEdit {
+                background-color: #ffffff;
+                border: 1px solid #ccc;
+                border-radius: 6px;
+                padding: 8px;
+                color: #333333;
+                selection-background-color: #007acc;
+                qproperty-alignment: 'AlignCenter';
+            }
+            QLineEdit:focus {
+                border: 1px solid #007acc;
+                background-color: #ffffff;
+            }
+            QPushButton {
+                background-color: #007acc;
+                border: none;
+                border-radius: 6px;
+                padding: 10px 20px;
+                color: white;
+                font-weight: bold;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+            }
+            QPushButton:hover {
+                background-color: #0062a3;
+                margin-top: 2px;
+                border-bottom: 2px solid #004080;
+            }
+            QPushButton:pressed {
+                background-color: #005a9e;
+                margin-top: 4px;
+                border-bottom: none;
+            }
+            QPushButton:disabled {
+                background-color: #e0e0e0;
+                color: #a0a0a0;
+                border: none;
+            }
+            QTextEdit {
+                background-color: #ffffff;
+                border: 1px solid #ccc;
+                border-radius: 6px;
+                color: #333333;
+                selection-background-color: #007acc;
+            }
+            QTabWidget::pane {
+                border: 1px solid #ccc;
+                background: #ffffff;
+                border-radius: 6px;
+            }
+            QTabBar::tab {
+                background: #e0e0e0;
+                color: #333333;
+                padding: 10px 25px;
+                border: 1px solid #ccc;
+                border-bottom: none;
+                border-top-left-radius: 6px;
+                border-top-right-radius: 6px;
+                min-width: 100px;
+                margin-right: 2px;
+            }
+            QTabBar::tab:selected {
+                background: #ffffff;
+                border-bottom: 2px solid #007acc;
+                font-weight: bold;
+                color: #333333;
+            }
+            QComboBox {
+                background-color: #ffffff;
+                border: 1px solid #ccc;
+                border-radius: 6px;
+                padding: 5px 10px;
+                color: #333333;
+                min-width: 6em;
+            }
+            QComboBox::drop-down {
+                subcontrol-origin: padding;
+                subcontrol-position: top right;
+                width: 25px;
+                border-left-width: 1px;
+                border-left-color: #ccc;
+                border-left-style: solid;
+                border-top-right-radius: 6px;
+                border-bottom-right-radius: 6px;
+                background-color: #e0e0e0;
+            }
+            QComboBox::down-arrow {
+                width: 0; 
+                height: 0; 
+                border-left: 6px solid transparent;
+                border-right: 6px solid transparent;
+                border-top: 6px solid #333333;
+                margin-top: 2px;
+            }
+            QComboBox QAbstractItemView {
+                background-color: #ffffff;
+                border: 1px solid #ccc;
+                selection-background-color: #007acc;
+                outline: none;
+                color: #333333;
+            }
+            /* Keep colored buttons as they are, they work on light theme too */
             QPushButton#startBtn { background-color: #2ecc71; }
             QPushButton#startBtn:hover { background-color: #27ae60; }
             QPushButton#startBtn:pressed { background-color: #1e8449; }
@@ -1372,6 +1562,8 @@ class ChatCollectGUI(QMainWindow):
         # Test Controls Group
         test_group = QGroupBox("Test")
         test_layout = QHBoxLayout()
+        
+        test_layout.addStretch()
 
         # Rarity Dropdown
         test_layout.addWidget(QLabel("Rarity:"))
@@ -1642,7 +1834,7 @@ class ChatCollectGUI(QMainWindow):
         rank_scroll.setWidgetResizable(True)
         rank_scroll_content = QWidget()
         self.ranks_layout = QVBoxLayout(rank_scroll_content)
-        self.ranks_layout.setSpacing(5)
+        self.ranks_layout.setSpacing(2)
         self.ranks_layout.setContentsMargins(10, 10, 10, 10)
         
         # Load ranks
@@ -1672,50 +1864,37 @@ class ChatCollectGUI(QMainWindow):
 
         # --- Balance Tab ---
         balance_tab = QWidget()
-        balance_layout = QGridLayout()
+        balance_layout = QVBoxLayout()
+        
+        # Grid for inputs
+        grid_layout = QGridLayout()
         
         # Cooldown
-        balance_layout.addWidget(QLabel("Cooldown (seconds):"), 0, 0)
+        grid_layout.addWidget(QLabel("Cooldown (seconds):"), 0, 0)
         self.cooldown_spin = QSpinBox()
         self.cooldown_spin.setRange(1, 3600)
         self.cooldown_spin.setValue(int(self.config.get('cooldown', 60)))
         self.cooldown_spin.valueChanged.connect(self.save_settings_change)
-        balance_layout.addWidget(self.cooldown_spin, 0, 1)
+        grid_layout.addWidget(self.cooldown_spin, 0, 1)
         
         # Shiny Chance
-        balance_layout.addWidget(QLabel("Shiny Chance (1 in X):"), 1, 0)
+        grid_layout.addWidget(QLabel("Shiny Chance (1 in X):"), 1, 0)
         self.shiny_chance_spin = QSpinBox()
         self.shiny_chance_spin.setRange(1, 1000000)
         self.shiny_chance_spin.setValue(int(self.config.get('shiny_chance', 10000)))
         self.shiny_chance_spin.valueChanged.connect(self.save_settings_change)
-        balance_layout.addWidget(self.shiny_chance_spin, 1, 1)
+        grid_layout.addWidget(self.shiny_chance_spin, 1, 1)
         
         # Legendary Chance
-        balance_layout.addWidget(QLabel("Legendary Chance (1 in X):"), 2, 0)
+        grid_layout.addWidget(QLabel("Legendary Chance (1 in X):"), 2, 0)
         self.legendary_chance_spin = QSpinBox()
         self.legendary_chance_spin.setRange(1, 1000000)
         self.legendary_chance_spin.setValue(int(self.config.get('legendary_chance', 1000)))
         self.legendary_chance_spin.valueChanged.connect(self.save_settings_change)
-        balance_layout.addWidget(self.legendary_chance_spin, 2, 1)
+        grid_layout.addWidget(self.legendary_chance_spin, 2, 1)
         
-        # Loot Points Range
-        balance_layout.addWidget(QLabel("Normal Loot Points (Min - Max):"), 3, 0)
-        loot_range_layout = QHBoxLayout()
-        self.loot_min_spin = QSpinBox()
-        self.loot_min_spin.setRange(1, 1000)
-        self.loot_min_spin.setValue(int(self.config.get('loot_min', 1)))
-        self.loot_min_spin.valueChanged.connect(self.save_settings_change)
-        loot_range_layout.addWidget(self.loot_min_spin)
-        
-        loot_range_layout.addWidget(QLabel("-"))
-        
-        self.loot_max_spin = QSpinBox()
-        self.loot_max_spin.setRange(1, 1000)
-        self.loot_max_spin.setValue(int(self.config.get('loot_max', 1)))
-        self.loot_max_spin.valueChanged.connect(self.save_settings_change)
-        loot_range_layout.addWidget(self.loot_max_spin)
-        
-        balance_layout.addLayout(loot_range_layout, 3, 1)
+        balance_layout.addLayout(grid_layout)
+        balance_layout.addStretch()
         
         balance_tab.setLayout(balance_layout)
         self.setup_tabs.addTab(balance_tab, "⚖️ Balance")
@@ -1735,7 +1914,7 @@ class ChatCollectGUI(QMainWindow):
     def add_rank_row(self, score, title):
         row_widget = QWidget()
         row_layout = QHBoxLayout(row_widget)
-        row_layout.setContentsMargins(0, 2, 0, 2)
+        row_layout.setContentsMargins(0, 0, 0, 0)
         
         score_input = QLineEdit(str(score))
         score_input.setValidator(QIntValidator())
@@ -1905,7 +2084,7 @@ class ChatCollectGUI(QMainWindow):
     def apply_theme(self, theme_name):
         self.config['theme'] = theme_name
         if theme_name == "Light Mode":
-            self.setStyleSheet("") 
+            self.setStyleSheet(self.get_light_stylesheet()) 
         elif theme_name == "Dark Mode":
             self.setStyleSheet(self.get_dark_stylesheet())
         elif theme_name == "System Default":
@@ -2095,8 +2274,8 @@ class ChatCollectGUI(QMainWindow):
         self.config['cooldown'] = self.cooldown_spin.value()
         self.config['shiny_chance'] = self.shiny_chance_spin.value()
         self.config['legendary_chance'] = self.legendary_chance_spin.value()
-        self.config['loot_min'] = self.loot_min_spin.value()
-        self.config['loot_max'] = self.loot_max_spin.value()
+        # self.config['loot_min'] = self.loot_min_spin.value()
+        # self.config['loot_max'] = self.loot_max_spin.value()
 
         # --- Save Setup Tab Inputs ---
         if hasattr(self, 'setup_inputs'):

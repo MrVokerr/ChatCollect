@@ -11,12 +11,13 @@ An interactive Twitch stream game where viewers "loot" virtual items, climb rank
 
 ### 1. Configuration (First Time Setup)
 1. Run **`ChatCollect.exe`**.
-2. Go to the **Setup** tab.
-3. **Commands**: Customize your chat commands (Default: `!loot`, `!leaderboard`, etc.).
-4. **Messages**: Customize the bot's responses to chat. Use the **"❓ Syntax Help"** button to see available placeholders.
-5. **Events**: Rename events to fit your theme (e.g., rename "Loot Drive" to "Raid").
-6. **Ranks**: Create your own custom ranks and score thresholds.
-7. Click **"💾 Save Configuration"**.
+2. Go to the **Setup** tab. You will see several sub-tabs:
+   - **💬 Commands**: Customize your chat commands (Default: `!loot`, `!leaderboard`, etc.).
+   - **📢 Messages**: Customize the bot's responses. Use the **"❓ Syntax Help"** button to see available placeholders.
+   - **🎉 Events**: Rename events to fit your theme (e.g., rename "Loot Drive" to "Raid").
+   - **🏆 Ranks**: Create your own custom ranks and score thresholds.
+   - **⚖️ Balance**: Adjust cooldowns and drop rates (Shiny/Legendary chances).
+3. Click **"💾 Save Configuration"**.
 
 ### 2. Launching the Bot
 1. Go to the **Collection** tab.
@@ -37,6 +38,11 @@ An interactive Twitch stream game where viewers "loot" virtual items, climb rank
 
 The main interface gives you full control over the game while live:
 
+### **Testing Tools**
+Located in the **Collection** tab, these tools let you verify your overlay is working without spamming chat:
+*   **Test Explosion/Legendary**: Triggers the animation on the overlay immediately.
+*   **Custom Test**: Select a specific item and rarity (e.g., "Golden Donut") from the dropdowns to preview exactly how it looks.
+
 ### **Events Control Panel**
 Trigger special events to boost engagement. You can set custom durations (in minutes) for each event!
 
@@ -55,15 +61,21 @@ Trigger special events to boost engagement. You can set custom durations (in min
 *   **Show Banner**: Toggles the notification banner on the overlay.
 *   **Show Leaderboard**: Toggles a live Top 10 Leaderboard on the overlay.
 
-### **Game Balance**
-Adjust the core mechanics of the game in the **Settings** tab:
+### **Game Balance (Setup Tab)**
+Adjust the core mechanics of the game in the **Setup > Balance** tab:
 *   **Cooldown**: Set how often users can loot (Default: 60s).
 *   **Shiny Chance**: Set the rarity of Shiny items (Default: 1 in 10,000).
 *   **Legendary Chance**: Set the rarity of Legendary items (Default: 1 in 1,000).
 
+### **Appearance & Settings**
+Customize the look of the application in the **Settings** tab:
+*   **Theme**: Choose between **Dark Mode**, **Light Mode**, or **System Default**.
+*   **Font**: Adjust the font family and size for the GUI.
+
 ### **Backup & Restore**
 Never lose your settings!
-*   **Backup Config**: Saves a timestamped copy of your settings to the `backups/` folder.
+*   **Auto-Backups**: The system automatically creates backups (`config_auto_...`) when updating.
+*   **Backup Config**: Manually save a timestamped copy of your settings to the `backups/` folder.
 *   **Restore Config**: Load a previous configuration file.
 
 ---
