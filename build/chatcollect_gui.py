@@ -1097,8 +1097,8 @@ class ChatCollectGUI(QMainWindow):
                 background-color: #1e1e1e;
                 border: 1px solid #333;
                 border-radius: 8px;
-                margin-top: 20px;
-                padding-top: 10px;
+                margin-top: 15px;
+                padding-top: 0px;
                 font-weight: bold;
                 color: #ffffff;
             }
@@ -1200,12 +1200,12 @@ class ChatCollectGUI(QMainWindow):
                 background-color: #2d2d2d;
             }
             QComboBox::down-arrow {
-                width: 0; 
-                height: 0; 
-                border-left: 6px solid transparent;
-                border-right: 6px solid transparent;
+                width: 0px;
+                height: 0px;
+                border-left: 5px solid transparent;
+                border-right: 5px solid transparent;
                 border-top: 6px solid #e0e0e0;
-                margin-top: 2px;
+                margin-right: 2px;
             }
             QComboBox QAbstractItemView {
                 background-color: #252525;
@@ -1291,8 +1291,8 @@ class ChatCollectGUI(QMainWindow):
                 background-color: #ffffff;
                 border: 1px solid #ccc;
                 border-radius: 8px;
-                margin-top: 20px;
-                padding-top: 10px;
+                margin-top: 15px;
+                padding-top: 0px;
                 font-weight: bold;
                 color: #333333;
             }
@@ -1394,12 +1394,12 @@ class ChatCollectGUI(QMainWindow):
                 background-color: #e0e0e0;
             }
             QComboBox::down-arrow {
-                width: 0; 
-                height: 0; 
-                border-left: 6px solid transparent;
-                border-right: 6px solid transparent;
+                width: 0px;
+                height: 0px;
+                border-left: 5px solid transparent;
+                border-right: 5px solid transparent;
                 border-top: 6px solid #333333;
-                margin-top: 2px;
+                margin-right: 2px;
             }
             QComboBox QAbstractItemView {
                 background-color: #ffffff;

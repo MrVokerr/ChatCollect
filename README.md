@@ -19,6 +19,10 @@ An interactive Twitch stream game where viewers "loot" virtual items, climb rank
    - **⚖️ Balance**: Adjust cooldowns and drop rates (Shiny/Legendary chances).
 3. Click **"💾 Save Configuration"**.
 
+> **📝 Note on Saving:** 
+> *   **Live Updates:** Most settings (Messages, Ranks, Balance, Theme) update immediately when you click Save.
+> *   **Restart Required:** If you change **Command Names** (e.g., `!loot` -> `!dig`) or **Twitch Credentials**, you must **Stop** and **Start** the bot again for changes to take effect. You do *not* need to close the application.
+
 ### 2. Launching the Bot
 1. Go to the **Collection** tab.
 2. Enter your credentials:
