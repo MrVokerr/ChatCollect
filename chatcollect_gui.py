@@ -7,16 +7,24 @@ import glob
 import sys
 import shutil
 import ctypes
+import urllib.request
+import subprocess
 from ctypes import windll, byref, c_int
 from datetime import datetime
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
                              QHBoxLayout, QLabel, QLineEdit, QPushButton, 
                              QTextEdit, QGroupBox, QMessageBox, QComboBox, QGridLayout, QCheckBox, 
                              QTabWidget, QFileDialog, QSpinBox, QFontComboBox, QFormLayout, QScrollArea)
-from PyQt5.QtCore import QThread, pyqtSignal, Qt
+from PyQt5.QtCore import QThread, pyqtSignal, Qt, QTimer
 from PyQt5.QtGui import QFont, QIntValidator, QIcon
 import websockets
 from twitchio.ext import commands
+
+# ============ VERSION & UPDATE CONFIG ============
+CURRENT_VERSION = "1.0.0"
+# REPLACE THESE WITH YOUR ACTUAL GITHUB URLs
+UPDATE_VERSION_URL = "https://raw.githubusercontent.com/MrVokerr/ChatCollect/main/version.txt"
+UPDATE_EXE_URL = "https://github.com/MrVokerr/ChatCollect/releases/latest/download/ChatCollect.exe"
 
 CONFIG_FILE = "chatcollect_config.json"
 DB_PATH = "chatcollect_data.txt"
@@ -1034,7 +1042,7 @@ class ChatCollectGUI(QMainWindow):
         """
 
     def init_ui(self):
-        self.setWindowTitle("ChatCollect")
+        self.setWindowTitle(f"ChatCollect v{CURRENT_VERSION}")
         
         # Set Window Icon
         icon_path = self.resource_path("exe_icon.ico")
@@ -1057,6 +1065,9 @@ class ChatCollectGUI(QMainWindow):
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
         main_layout = QVBoxLayout(central_widget)
+        
+        # Check for updates
+        QTimer.singleShot(2000, self.check_for_updates)
         
         # Create Tabs
         self.tabs = QTabWidget()
@@ -1653,6 +1664,110 @@ class ChatCollectGUI(QMainWindow):
         self.config['font_family'] = font.family()
         self.config['font_size'] = size
         self.save_configuration()
+
+    def check_for_updates(self):
+        """Check for updates in a separate thread"""
+        def _check():
+            try:
+                with urllib.request.urlopen(UPDATE_VERSION_URL, timeout=5) as response:
+                    remote_version = response.read().decode('utf-8').strip()
+                
+                if remote_version != CURRENT_VERSION:
+                    # Signal main thread to prompt
+                    QTimer.singleShot(0, lambda: self.prompt_update(remote_version))
+            except Exception as e:
+                print(f"Update check failed: {e}")
+
+        import threading
+        threading.Thread(target=_check, daemon=True).start()
+
+    def prompt_update(self, remote_version):
+        reply = QMessageBox.question(self, "Update Available", 
+                                     f"A new version ({remote_version}) is available!\n\n"
+                                     "Do you want to update now?\n"
+                                     "(This will backup your settings, download the new version, and restart)",
+                                     QMessageBox.Yes | QMessageBox.No)
+        
+        if reply == QMessageBox.Yes:
+            self.perform_update()
+
+    def perform_update(self):
+        self.log("🔄 Starting update process...")
+        
+        # 1. Create Backup (Keep max 2)
+        self.manage_auto_backups()
+        
+        # 2. Download new EXE
+        try:
+            new_exe_name = "ChatCollect_new.exe"
+            self.log("⬇️ Downloading new version...")
+            
+            # Download with progress (blocking UI for simplicity, or use thread)
+            # Using urllib for simplicity
+            with urllib.request.urlopen(UPDATE_EXE_URL) as response, open(new_exe_name, 'wb') as out_file:
+                shutil.copyfileobj(response, out_file)
+                
+            self.log("✅ Download complete.")
+            
+            # 3. Create Updater Script
+            updater_bat = "update_restart.bat"
+            current_exe = sys.executable
+            
+            with open(updater_bat, "w") as bat:
+                bat.write("@echo off\n")
+                bat.write("timeout /t 2 /nobreak >nul\n")
+                bat.write(f'move /y "{new_exe_name}" "{current_exe}"\n')
+                bat.write(f'start "" "{current_exe}"\n')
+                bat.write(f'del "{updater_bat}"\n')
+            
+            self.log("🚀 Restarting to apply update...")
+            
+            # 4. Launch Updater and Exit
+            subprocess.Popen([updater_bat], shell=True)
+            QApplication.quit()
+            
+        except Exception as e:
+            self.log(f"❌ Update failed: {e}")
+            QMessageBox.critical(self, "Update Failed", f"Could not update: {e}")
+
+    def manage_auto_backups(self):
+        """Create backup and ensure only 2 newest exist"""
+        try:
+            backup_dir = os.path.join(os.getcwd(), "backups")
+            if not os.path.exists(backup_dir):
+                os.makedirs(backup_dir)
+            
+            # Create new backup
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            
+            # Backup Config
+            shutil.copy2(CONFIG_FILE, os.path.join(backup_dir, f"config_auto_{timestamp}.json"))
+            # Backup Data
+            if os.path.exists(DB_PATH):
+                shutil.copy2(DB_PATH, os.path.join(backup_dir, f"data_auto_{timestamp}.txt"))
+            
+            self.log("✅ Auto-backup created.")
+            
+            # Cleanup old backups (Keep newest 2 sets)
+            # Filter for auto backups
+            files = sorted([os.path.join(backup_dir, f) for f in os.listdir(backup_dir) if f.startswith("config_auto_")], key=os.path.getmtime)
+            
+            while len(files) > 2:
+                oldest_config = files.pop(0)
+                # Try to find matching data file
+                timestamp_part = oldest_config.split("_")[-1].replace(".json", "")
+                oldest_data = os.path.join(backup_dir, f"data_auto_{timestamp_part}.txt")
+                
+                try:
+                    os.remove(oldest_config)
+                    if os.path.exists(oldest_data):
+                        os.remove(oldest_data)
+                    self.log(f"🗑️ Removed old backup: {os.path.basename(oldest_config)}")
+                except Exception as e:
+                    print(f"Failed to remove old backup: {e}")
+                    
+        except Exception as e:
+            self.log(f"⚠️ Auto-backup warning: {e}")
 
     def browse_output_dir(self):
         directory = QFileDialog.getExistingDirectory(self, "Select Output Directory")
