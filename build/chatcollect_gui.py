@@ -1857,10 +1857,18 @@ class ChatCollectGUI(QMainWindow):
         self.setup_tabs.addTab(ranks_tab, "🏆 Ranks")
         
         # Save Button for Setup Tab
+        btn_layout = QHBoxLayout()
+        
+        load_btn = QPushButton("📂 Load Config File")
+        load_btn.clicked.connect(self.load_config_from_file)
+        btn_layout.addWidget(load_btn)
+
         save_btn = QPushButton("💾 Save Configuration")
         save_btn.setObjectName("saveBtn")
         save_btn.clicked.connect(self.save_configuration)
-        layout.addWidget(save_btn)
+        btn_layout.addWidget(save_btn)
+        
+        layout.addLayout(btn_layout)
 
         # --- Balance Tab ---
         balance_tab = QWidget()
@@ -2256,6 +2264,80 @@ class ChatCollectGUI(QMainWindow):
                 print(f"Error loading config: {e}")
                 return DEFAULT_CONFIG.copy()
         return DEFAULT_CONFIG.copy()
+
+    def load_config_from_file(self):
+        file_path, _ = QFileDialog.getOpenFileName(self, "Select Config File", os.getcwd(), "JSON Files (*.json)")
+        if not file_path:
+            return
+            
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                new_config = json.load(f)
+                
+            # Update self.config
+            self.config = DEFAULT_CONFIG.copy()
+            # Deep merge logic
+            for key in ["commands", "messages", "events"]:
+                if key in new_config:
+                    self.config[key].update(new_config[key])
+            for key in new_config:
+                if key not in ["commands", "messages", "events"]:
+                    self.config[key] = new_config[key]
+            
+            # Refresh UI
+            self.refresh_ui_from_config()
+            
+            self.log(f"✅ Configuration loaded from: {file_path}")
+            self.toast.show_message("✅ Configuration Loaded!")
+            
+        except Exception as e:
+            self.log(f"❌ Error loading config: {e}")
+            QMessageBox.critical(self, "Error", f"Failed to load config: {e}")
+
+    def refresh_ui_from_config(self):
+        # Tab 1: Collection
+        self.token_input.setText(self.config.get('token', ''))
+        self.channel_input.setText(self.config.get('channel', ''))
+        self.show_banner_cb.setChecked(self.config.get('show_banner', True))
+        self.show_leaderboard_cb.setChecked(self.config.get('show_leaderboard', False))
+        
+        # Tab 2: Setup (Dynamic Inputs)
+        if hasattr(self, 'setup_inputs'):
+            for category, inputs in self.setup_inputs.items():
+                for key, input_field in inputs.items():
+                    val = self.config.get(category, {}).get(key, "")
+                    input_field.setText(str(val))
+                    
+        # Tab 2: Ranks
+        # Clear existing ranks
+        while self.ranks_layout.count():
+            item = self.ranks_layout.takeAt(0)
+            widget = item.widget()
+            if widget:
+                widget.deleteLater()
+        self.rank_inputs = []
+        
+        # Add new ranks
+        current_ranks = self.config.get("ranks", DEFAULT_CONFIG["ranks"])
+        current_ranks.sort(key=lambda x: x["score"])
+        for r in current_ranks:
+            self.add_rank_row(r["score"], r["title"])
+            
+        # Tab 2: Balance
+        self.cooldown_spin.setValue(int(self.config.get('cooldown', 60)))
+        self.shiny_chance_spin.setValue(int(self.config.get('shiny_chance', 10000)))
+        self.legendary_chance_spin.setValue(int(self.config.get('legendary_chance', 1000)))
+
+        # Tab 3: Settings
+        self.theme_combo.setCurrentText(self.config.get('theme', 'Dark Mode'))
+        self.font_combo.setCurrentFont(QFont(self.config.get('font_family', 'Segoe UI')))
+        self.font_size_spin.setValue(self.config.get('font_size', 11))
+        self.output_dir_input.setText(self.config.get('output_dir', os.getcwd()))
+        self.autosave_spin.setValue(self.config.get('autosave_interval', 5))
+        
+        # Apply Theme/Font
+        self.apply_theme(self.config.get('theme', 'Dark Mode'))
+        self.apply_font()
     
     def save_configuration(self):
         # Update current config with UI values

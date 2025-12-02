@@ -19,6 +19,14 @@ An interactive Twitch stream game where viewers "loot" virtual items, climb rank
    - **⚖️ Balance**: Adjust cooldowns and drop rates (Shiny/Legendary chances).
 3. Click **"💾 Save Configuration"**.
 
+### 📂 Loading & Switching Profiles
+You can switch between different game modes (e.g., "Loot Mode" vs "Bake Mode") by loading different configuration files.
+1. Go to the **Setup** tab.
+2. Click **"📂 Load Config File"**.
+3. Select a `.json` file (e.g., `chatcollect_config_bakerank.json`).
+4. The application will instantly update all commands, messages, ranks, and settings to match the loaded file.
+   *   *Note:* This does not delete your player data! The database (`chatcollect_data.txt`) is universal and compatible with any config. "Loot Points" simply become "Bake Points".
+
 > **📝 Note on Saving:** 
 > *   **Live Updates:** Most settings (Messages, Ranks, Balance, Theme) update immediately when you click Save.
 > *   **Restart Required:** If you change **Command Names** (e.g., `!loot` -> `!dig`) or **Twitch Credentials**, you must **Stop** and **Start** the bot again for changes to take effect. You do *not* need to close the application.
