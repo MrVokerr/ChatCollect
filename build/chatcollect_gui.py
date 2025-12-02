@@ -15,8 +15,8 @@ from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                              QHBoxLayout, QLabel, QLineEdit, QPushButton, 
                              QTextEdit, QGroupBox, QMessageBox, QComboBox, QGridLayout, QCheckBox, 
                              QTabWidget, QFileDialog, QSpinBox, QFontComboBox, QFormLayout, QScrollArea)
-from PyQt5.QtCore import QThread, pyqtSignal, Qt, QTimer
-from PyQt5.QtGui import QFont, QIntValidator, QIcon
+from PyQt5.QtCore import QThread, pyqtSignal, Qt, QTimer, QPropertyAnimation, QRectF, QEasingCurve, pyqtProperty
+from PyQt5.QtGui import QFont, QIntValidator, QIcon, QPainter, QColor, QBrush, QPen
 import websockets
 from twitchio.ext import commands
 
@@ -953,6 +953,71 @@ class BotThread(QThread):
         if self.loop:
             self.loop.call_soon_threadsafe(self.loop.stop)
 
+# ============ CUSTOM WIDGETS ============
+class ToggleSwitch(QCheckBox):
+    def __init__(self, text="", parent=None):
+        super().__init__(text, parent)
+        self.setCursor(Qt.PointingHandCursor)
+        self._bg_color = QColor("#444")
+        self._circle_color = QColor("#DDD")
+        self._active_color = QColor("#4CAF50")
+        self._circle_position = 3
+        self.animation = QPropertyAnimation(self, b"circle_position", self)
+        self.animation.setEasingCurve(QEasingCurve.OutBounce)
+        self.animation.setDuration(300)
+        self.stateChanged.connect(self.start_transition)
+        self.setFixedHeight(26)
+        # Ensure width accommodates switch (50px) + padding (10px) + text
+        self.setMinimumWidth(60 + self.fontMetrics().width(text))
+
+    @pyqtProperty(float)
+    def circle_position(self):
+        return self._circle_position
+
+    @circle_position.setter
+    def circle_position(self, pos):
+        self._circle_position = pos
+        self.update()
+
+    def start_transition(self, state):
+        self.animation.stop()
+        if state:
+            self.animation.setEndValue(27) # 50 - 20 - 3
+        else:
+            self.animation.setEndValue(3)
+        self.animation.start()
+
+    def hitButton(self, pos):
+        return self.contentsRect().contains(pos)
+
+    def paintEvent(self, e):
+        p = QPainter(self)
+        p.setRenderHint(QPainter.Antialiasing)
+
+        # Switch Rect
+        sw_width = 50
+        sw_height = 26
+        rect = QRectF(0, 0, sw_width, sw_height)
+        
+        if self.isChecked():
+            p.setBrush(QBrush(self._active_color))
+        else:
+            p.setBrush(QBrush(self._bg_color))
+        
+        p.setPen(Qt.NoPen)
+        p.drawRoundedRect(rect, 13, 13)
+
+        # Draw Circle
+        p.setBrush(QBrush(self._circle_color))
+        p.drawEllipse(QRectF(self._circle_position, 3, 20, 20))
+
+        # Draw Text
+        if self.text():
+            p.setPen(QColor("#e0e0e0"))
+            p.setFont(self.font())
+            text_rect = QRectF(sw_width + 10, 0, self.width() - sw_width - 10, self.height())
+            p.drawText(text_rect, Qt.AlignLeft | Qt.AlignVCenter, self.text())
+
 # ============ MAIN GUI WINDOW ============
 class ChatCollectGUI(QMainWindow):
     def __init__(self):
@@ -974,82 +1039,178 @@ class ChatCollectGUI(QMainWindow):
     def get_dark_stylesheet(self):
         return """
             QMainWindow {
-                background-color: #1e1e1e;
+                background-color: #121212;
             }
             QWidget {
-                background-color: #1e1e1e;
+                background-color: #121212;
                 color: #e0e0e0;
-                font-size: 11pt;
+                font-family: 'Segoe UI', sans-serif;
+                font-size: 10pt;
             }
             QGroupBox {
-                background-color: #252525;
-                border: 2px solid #3d3d3d;
-                border-radius: 5px;
-                margin-top: 10px;
-                padding-top: 10px;
+                background-color: #1e1e1e;
+                border: 1px solid #333;
+                border-radius: 8px;
+                margin-top: 20px;
+                padding-top: 15px;
                 font-weight: bold;
                 color: #ffffff;
             }
             QGroupBox::title {
                 subcontrol-origin: margin;
-                left: 10px;
+                subcontrol-position: top left;
+                left: 15px;
                 padding: 0 5px;
+                background-color: #1e1e1e; 
             }
             QLabel {
-                color: #e0e0e0;
+                color: #b0b0b0;
                 background-color: transparent;
             }
             QLineEdit {
-                background-color: #2d2d2d;
-                border: 1px solid #3d3d3d;
-                border-radius: 3px;
-                padding: 5px;
-                color: #e0e0e0;
-                selection-background-color: #4a4a4a;
+                background-color: #252525;
+                border: 1px solid #333;
+                border-radius: 6px;
+                padding: 8px;
+                color: #ffffff;
+                selection-background-color: #007acc;
+                qproperty-alignment: 'AlignCenter';
             }
             QLineEdit:focus {
-                border: 1px solid #0d7377;
+                border: 1px solid #007acc;
+                background-color: #2d2d2d;
             }
             QPushButton {
-                background-color: #2d2d2d;
-                border: 1px solid #3d3d3d;
-                border-radius: 3px;
-                padding: 8px;
-                color: #e0e0e0;
+                background-color: #007acc;
+                border: none;
+                border-radius: 6px;
+                padding: 10px 20px;
+                color: white;
+                font-weight: bold;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
             }
             QPushButton:hover {
-                background-color: #3d3d3d;
-                border: 1px solid #4d4d4d;
+                background-color: #0062a3;
+                margin-top: 2px;
+                border-bottom: 2px solid #004080;
             }
             QPushButton:pressed {
-                background-color: #1d1d1d;
+                background-color: #005a9e;
+                margin-top: 4px;
+                border-bottom: none;
+            }
+            QPushButton:disabled {
+                background-color: #333;
+                color: #777;
+                border: none;
             }
             QTextEdit {
-                background-color: #0d0d0d;
-                border: 1px solid #3d3d3d;
-                border-radius: 3px;
+                background-color: #1e1e1e;
+                border: 1px solid #333;
+                border-radius: 6px;
                 color: #e0e0e0;
-                selection-background-color: #4a4a4a;
+                selection-background-color: #007acc;
             }
             QTabWidget::pane {
-                border: 1px solid #3d3d3d;
+                border: 1px solid #333;
                 background: #1e1e1e;
+                border-radius: 6px;
             }
             QTabBar::tab {
                 background: #2d2d2d;
                 color: #e0e0e0;
-                padding: 8px 20px;
-                border: 1px solid #3d3d3d;
+                padding: 10px 25px;
+                border: 1px solid #333;
                 border-bottom: none;
-                border-top-left-radius: 4px;
-                border-top-right-radius: 4px;
+                border-top-left-radius: 6px;
+                border-top-right-radius: 6px;
                 min-width: 100px;
+                margin-right: 2px;
             }
             QTabBar::tab:selected {
                 background: #1e1e1e;
-                border-bottom: 1px solid #1e1e1e;
+                border-bottom: 2px solid #007acc;
                 font-weight: bold;
+                color: #ffffff;
             }
+            QComboBox {
+                background-color: #252525;
+                border: 1px solid #333;
+                border-radius: 6px;
+                padding: 8px;
+                color: #ffffff;
+                min-width: 6em;
+            }
+            QComboBox::drop-down {
+                subcontrol-origin: padding;
+                subcontrol-position: top right;
+                width: 20px;
+                border-left-width: 0px;
+                border-top-right-radius: 6px;
+                border-bottom-right-radius: 6px;
+            }
+            QComboBox QAbstractItemView {
+                background-color: #252525;
+                border: 1px solid #333;
+                selection-background-color: #007acc;
+                outline: none;
+            }
+            QPushButton#startBtn { background-color: #2ecc71; }
+            QPushButton#startBtn:hover { background-color: #27ae60; }
+            QPushButton#startBtn:pressed { background-color: #1e8449; }
+
+            QPushButton#stopBtn { background-color: #e74c3c; }
+            QPushButton#stopBtn:hover { background-color: #c0392b; }
+            QPushButton#stopBtn:pressed { background-color: #922b21; }
+
+            QPushButton#testExplosionBtn { background-color: #e67e22; }
+            QPushButton#testExplosionBtn:hover { background-color: #d35400; }
+            QPushButton#testExplosionBtn:pressed { background-color: #a04000; }
+
+            QPushButton#testLegendaryBtn { background-color: #f1c40f; color: #2c3e50; }
+            QPushButton#testLegendaryBtn:hover { background-color: #f39c12; }
+            QPushButton#testLegendaryBtn:pressed { background-color: #d68910; }
+
+            QPushButton#customTestBtn { background-color: #3498db; }
+            QPushButton#customTestBtn:hover { background-color: #2980b9; }
+            QPushButton#customTestBtn:pressed { background-color: #21618c; }
+
+            QPushButton#rushHourBtn { background-color: #e91e63; }
+            QPushButton#rushHourBtn:hover { background-color: #c2185b; }
+            QPushButton#rushHourBtn:pressed { background-color: #880e4f; }
+
+            QPushButton#lootDriveBtn { background-color: #9c27b0; }
+            QPushButton#lootDriveBtn:hover { background-color: #7b1fa2; }
+            QPushButton#lootDriveBtn:pressed { background-color: #4a148c; }
+
+            QPushButton#bountyHunterBtn { background-color: #607d8b; }
+            QPushButton#bountyHunterBtn:hover { background-color: #455a64; }
+            QPushButton#bountyHunterBtn:pressed { background-color: #263238; }
+
+            QPushButton#contestBtn { background-color: #ff5722; }
+            QPushButton#contestBtn:hover { background-color: #e64a19; }
+            QPushButton#contestBtn:pressed { background-color: #bf360c; }
+
+            QPushButton#backupBtn { background-color: #2196f3; }
+            QPushButton#backupBtn:hover { background-color: #1976d2; }
+            QPushButton#backupBtn:pressed { background-color: #0d47a1; }
+
+            QPushButton#restoreBtn { background-color: #ff9800; }
+            QPushButton#restoreBtn:hover { background-color: #f57c00; }
+            QPushButton#restoreBtn:pressed { background-color: #e65100; }
+
+            QPushButton#saveBtn { background-color: #4caf50; }
+            QPushButton#saveBtn:hover { background-color: #388e3c; }
+            QPushButton#saveBtn:pressed { background-color: #1b5e20; }
+            
+            QPushButton#helpBtn { background-color: #00bcd4; }
+            QPushButton#helpBtn:hover { background-color: #0097a7; }
+            QPushButton#helpBtn:pressed { background-color: #006064; }
+
+            QPushButton#delBtn { background-color: #d32f2f; }
+            QPushButton#delBtn:hover { background-color: #b71c1c; }
+            QPushButton#delBtn:pressed { background-color: #c62828; }
         """
 
     def init_ui(self):
@@ -1118,6 +1279,7 @@ class ChatCollectGUI(QMainWindow):
 
         # Save Config Button
         self.save_config_btn = QPushButton("💾 Save Configuration")
+        self.save_config_btn.setObjectName("saveBtn")
         self.save_config_btn.clicked.connect(self.save_configuration)
         config_layout.addWidget(self.save_config_btn)
         
@@ -1128,18 +1290,18 @@ class ChatCollectGUI(QMainWindow):
         btn_layout = QHBoxLayout()
         
         self.start_btn = QPushButton("▶ Start Bot")
+        self.start_btn.setObjectName("startBtn")
         self.start_btn.clicked.connect(self.start_bot)
-        self.start_btn.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold; padding: 10px; border: none;")
         btn_layout.addWidget(self.start_btn)
         
         self.test_explosion_btn = QPushButton("💥 Test Explosion")
+        self.test_explosion_btn.setObjectName("testExplosionBtn")
         self.test_explosion_btn.clicked.connect(self.test_explosion)
-        self.test_explosion_btn.setStyleSheet("background-color: #FF9800; color: white; font-weight: bold; padding: 10px; border: none;")
         btn_layout.addWidget(self.test_explosion_btn)
         
         self.test_legendary_btn = QPushButton("✨ Test Legendary")
+        self.test_legendary_btn.setObjectName("testLegendaryBtn")
         self.test_legendary_btn.clicked.connect(self.test_legendary)
-        self.test_legendary_btn.setStyleSheet("background-color: #FFD700; color: black; font-weight: bold; padding: 10px; border: none;")
         btn_layout.addWidget(self.test_legendary_btn)
         
         layout.addLayout(btn_layout)
@@ -1151,12 +1313,18 @@ class ChatCollectGUI(QMainWindow):
         # Rarity Dropdown
         test_layout.addWidget(QLabel("Rarity:"))
         self.rarity_combo = QComboBox()
+        self.rarity_combo.setEditable(True)
+        self.rarity_combo.lineEdit().setReadOnly(True)
+        self.rarity_combo.lineEdit().setAlignment(Qt.AlignCenter)
         self.rarity_combo.addItems(["Standard", "Ruined", "Shiny", "Golden", "Legendary"])
         test_layout.addWidget(self.rarity_combo)
 
         # Item Dropdown
         test_layout.addWidget(QLabel("Item:"))
         self.item_combo = QComboBox()
+        self.item_combo.setEditable(True)
+        self.item_combo.lineEdit().setReadOnly(True)
+        self.item_combo.lineEdit().setAlignment(Qt.AlignCenter)
         # Populate items
         all_items = asset_manager.normal_items + asset_manager.legendary_items
         for filename in all_items:
@@ -1166,8 +1334,8 @@ class ChatCollectGUI(QMainWindow):
 
         # Test Button
         self.custom_test_btn = QPushButton("🧪 Test")
+        self.custom_test_btn.setObjectName("customTestBtn")
         self.custom_test_btn.clicked.connect(self.test_custom_bake)
-        self.custom_test_btn.setStyleSheet("background-color: #00BCD4; color: white; font-weight: bold; padding: 8px;")
         test_layout.addWidget(self.custom_test_btn)
 
         test_group.setLayout(test_layout)
@@ -1177,12 +1345,12 @@ class ChatCollectGUI(QMainWindow):
         overlay_group = QGroupBox("Overlay Settings")
         overlay_layout = QHBoxLayout()
         
-        self.show_banner_cb = QCheckBox("Show Banner")
+        self.show_banner_cb = ToggleSwitch("Show Banner")
         self.show_banner_cb.setChecked(self.config.get('show_banner', True))
         self.show_banner_cb.stateChanged.connect(self.toggle_banner)
         overlay_layout.addWidget(self.show_banner_cb)
         
-        self.show_leaderboard_cb = QCheckBox("Show Leaderboard")
+        self.show_leaderboard_cb = ToggleSwitch("Show Leaderboard")
         self.show_leaderboard_cb.setChecked(self.config.get('show_leaderboard', False))
         self.show_leaderboard_cb.stateChanged.connect(self.toggle_leaderboard)
         overlay_layout.addWidget(self.show_leaderboard_cb)
@@ -1207,13 +1375,13 @@ class ChatCollectGUI(QMainWindow):
         events_layout.addWidget(QLabel("minutes"), 0, 2)
         
         self.rush_hour_btn = QPushButton("Start")
+        self.rush_hour_btn.setObjectName("rushHourBtn")
         self.rush_hour_btn.clicked.connect(self.trigger_rush_hour)
-        self.rush_hour_btn.setStyleSheet("background-color: #E91E63; color: white; font-weight: bold;")
         events_layout.addWidget(self.rush_hour_btn, 0, 3)
 
         self.stop_rh_btn = QPushButton("Stop")
+        self.stop_rh_btn.setObjectName("stopBtn")
         self.stop_rh_btn.clicked.connect(self.stop_rush_hour)
-        self.stop_rh_btn.setStyleSheet("background-color: #555; color: white;")
         events_layout.addWidget(self.stop_rh_btn, 0, 4)
         
         # Loot Drive
@@ -1226,13 +1394,13 @@ class ChatCollectGUI(QMainWindow):
         events_layout.addWidget(QLabel("minutes"), 1, 2)
 
         self.loot_drive_btn = QPushButton("Start")
+        self.loot_drive_btn.setObjectName("lootDriveBtn")
         self.loot_drive_btn.clicked.connect(self.trigger_loot_drive)
-        self.loot_drive_btn.setStyleSheet("background-color: #9C27B0; color: white; font-weight: bold;")
         events_layout.addWidget(self.loot_drive_btn, 1, 3)
 
         self.stop_bs_btn = QPushButton("Stop")
+        self.stop_bs_btn.setObjectName("stopBtn")
         self.stop_bs_btn.clicked.connect(self.stop_loot_drive)
-        self.stop_bs_btn.setStyleSheet("background-color: #555; color: white;")
         events_layout.addWidget(self.stop_bs_btn, 1, 4)
         
         # Bounty Hunter
@@ -1245,13 +1413,13 @@ class ChatCollectGUI(QMainWindow):
         events_layout.addWidget(QLabel("minutes"), 2, 2)
 
         self.bounty_hunter_btn = QPushButton("Start")
+        self.bounty_hunter_btn.setObjectName("bountyHunterBtn")
         self.bounty_hunter_btn.clicked.connect(self.trigger_bounty_hunter)
-        self.bounty_hunter_btn.setStyleSheet("background-color: #607D8B; color: white; font-weight: bold;")
         events_layout.addWidget(self.bounty_hunter_btn, 2, 3)
 
         self.stop_fc_btn = QPushButton("Stop")
+        self.stop_fc_btn.setObjectName("stopBtn")
         self.stop_fc_btn.clicked.connect(self.stop_bounty_hunter)
-        self.stop_fc_btn.setStyleSheet("background-color: #555; color: white;")
         events_layout.addWidget(self.stop_fc_btn, 2, 4)
         
         # Contest
@@ -1264,13 +1432,13 @@ class ChatCollectGUI(QMainWindow):
         events_layout.addWidget(QLabel("minutes"), 3, 2)
 
         self.contest_btn = QPushButton("Start")
+        self.contest_btn.setObjectName("contestBtn")
         self.contest_btn.clicked.connect(self.trigger_contest)
-        self.contest_btn.setStyleSheet("background-color: #FF5722; color: white; font-weight: bold;")
         events_layout.addWidget(self.contest_btn, 3, 3)
 
         self.stop_bo_btn = QPushButton("Stop")
+        self.stop_bo_btn.setObjectName("stopBtn")
         self.stop_bo_btn.clicked.connect(self.stop_contest)
-        self.stop_bo_btn.setStyleSheet("background-color: #555; color: white;")
         events_layout.addWidget(self.stop_bo_btn, 3, 4)
         
         events_group.setLayout(events_layout)
@@ -1284,7 +1452,7 @@ class ChatCollectGUI(QMainWindow):
         rh_layout = QVBoxLayout()
         rh_layout.addWidget(QLabel("🚀 Rush Hour"))
         self.rh_status_label = QLabel("Inactive")
-        self.rh_status_label.setStyleSheet("color: #888;")
+        self.rh_status_label.setObjectName("statusLabel")
         rh_layout.addWidget(self.rh_status_label)
         status_layout.addLayout(rh_layout)
 
@@ -1292,7 +1460,7 @@ class ChatCollectGUI(QMainWindow):
         bs_layout = QVBoxLayout()
         bs_layout.addWidget(QLabel("🎒 Loot Drive"))
         self.bs_status_label = QLabel("Inactive")
-        self.bs_status_label.setStyleSheet("color: #888;")
+        self.bs_status_label.setObjectName("statusLabel")
         bs_layout.addWidget(self.bs_status_label)
         status_layout.addLayout(bs_layout)
 
@@ -1300,7 +1468,7 @@ class ChatCollectGUI(QMainWindow):
         fc_layout = QVBoxLayout()
         fc_layout.addWidget(QLabel("🧐 Bounty Hunter"))
         self.fc_status_label = QLabel("Inactive")
-        self.fc_status_label.setStyleSheet("color: #888;")
+        self.fc_status_label.setObjectName("statusLabel")
         fc_layout.addWidget(self.fc_status_label)
         status_layout.addLayout(fc_layout)
 
@@ -1308,7 +1476,7 @@ class ChatCollectGUI(QMainWindow):
         bo_layout = QVBoxLayout()
         bo_layout.addWidget(QLabel("⚔️ Contest"))
         self.bo_status_label = QLabel("Inactive")
-        self.bo_status_label.setStyleSheet("color: #888;")
+        self.bo_status_label.setObjectName("statusLabel")
         bo_layout.addWidget(self.bo_status_label)
         status_layout.addLayout(bo_layout)
 
@@ -1361,8 +1529,8 @@ class ChatCollectGUI(QMainWindow):
         
         # Syntax Help Button
         help_btn = QPushButton("❓ Syntax Help")
+        help_btn.setObjectName("helpBtn")
         help_btn.clicked.connect(self.show_syntax_help)
-        help_btn.setStyleSheet("background-color: #00BCD4; color: white; font-weight: bold;")
         msg_layout.addWidget(help_btn)
 
         scroll = QScrollArea()
@@ -1427,8 +1595,8 @@ class ChatCollectGUI(QMainWindow):
         
         # Save Button for Setup Tab
         save_btn = QPushButton("💾 Save Configuration")
+        save_btn.setObjectName("saveBtn")
         save_btn.clicked.connect(self.save_configuration)
-        save_btn.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold; padding: 10px; margin-top: 10px;")
         layout.addWidget(save_btn)
 
     def add_config_input(self, layout, category, key, label_text):
@@ -1457,8 +1625,8 @@ class ChatCollectGUI(QMainWindow):
         title_input.setPlaceholderText("Rank Title")
         
         del_btn = QPushButton("❌")
+        del_btn.setObjectName("delBtn")
         del_btn.setFixedWidth(30)
-        del_btn.setStyleSheet("background-color: #d32f2f; color: white; border: none;")
         del_btn.clicked.connect(lambda: self.remove_rank_row(row_widget, score_input, title_input))
         
         row_layout.addWidget(QLabel("Score:"))
@@ -1485,6 +1653,9 @@ class ChatCollectGUI(QMainWindow):
         # Theme
         appearance_layout.addWidget(QLabel("Theme:"), 0, 0)
         self.theme_combo = QComboBox()
+        self.theme_combo.setEditable(True)
+        self.theme_combo.lineEdit().setReadOnly(True)
+        self.theme_combo.lineEdit().setAlignment(Qt.AlignCenter)
         self.theme_combo.addItems(["Dark Mode", "Light Mode", "System Default"])
         self.theme_combo.setCurrentText(self.config.get('theme', 'Dark Mode'))
         self.theme_combo.currentTextChanged.connect(self.apply_theme)
@@ -1493,6 +1664,9 @@ class ChatCollectGUI(QMainWindow):
         # Font Family
         appearance_layout.addWidget(QLabel("Font Family:"), 1, 0)
         self.font_combo = QFontComboBox()
+        self.font_combo.setEditable(True)
+        self.font_combo.lineEdit().setReadOnly(True)
+        self.font_combo.lineEdit().setAlignment(Qt.AlignCenter)
         current_font = self.config.get('font_family', 'Segoe UI')
         self.font_combo.setCurrentFont(QFont(current_font))
         self.font_combo.currentFontChanged.connect(self.apply_font)
@@ -1540,13 +1714,13 @@ class ChatCollectGUI(QMainWindow):
         backup_layout = QHBoxLayout()
         
         self.backup_btn = QPushButton("📂 Backup Config")
+        self.backup_btn.setObjectName("backupBtn")
         self.backup_btn.clicked.connect(self.backup_config)
-        self.backup_btn.setStyleSheet("background-color: #2196F3; color: white;")
         backup_layout.addWidget(self.backup_btn)
         
         self.restore_btn = QPushButton("♻️ Restore Config")
+        self.restore_btn.setObjectName("restoreBtn")
         self.restore_btn.clicked.connect(self.restore_config)
-        self.restore_btn.setStyleSheet("background-color: #FF9800; color: white;")
         backup_layout.addWidget(self.restore_btn)
         
         backup_group.setLayout(backup_layout)
