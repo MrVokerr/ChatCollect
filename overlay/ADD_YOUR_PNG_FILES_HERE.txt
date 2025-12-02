@@ -1,5 +1,5 @@
 ================================================================================
-🎨 DYNAMIC BAKED GOODS SYSTEM - INSTRUCTIONS
+🎨 DYNAMIC LOOT SYSTEM - INSTRUCTIONS
 ================================================================================
 
 The bot now AUTOMATICALLY detects ALL .png files in this folder!
@@ -7,16 +7,16 @@ The bot now AUTOMATICALLY detects ALL .png files in this folder!
 HOW IT WORKS:
 -------------
 1. Add ANY .png file to this overlay/ folder
-2. The bot will randomly select from available PNG files
+2. The bot will randomly select from available PNG files as loot
 3. The filename becomes the display name in chat
 4. You can add or remove PNGs anytime - no code changes needed!
 
 EXAMPLES:
 ---------
-File: baguette.png          → Chat shows: "baked a Baguette!"
-File: chocolate_cake.png    → Chat shows: "baked a Chocolate Cake!"
-File: apple-pie.png         → Chat shows: "baked an Apple Pie!"
-File: golden_croissant.png  → Chat shows: "baked a Golden Croissant!"
+File: sword.png             → Chat shows: "looted a Sword!"
+File: potion.png            → Chat shows: "looted a Potion!"
+File: ancient_relic.png     → Chat shows: "looted an Ancient Relic!"
+File: golden_crown.png      → Chat shows: "looted a Golden Crown!"
 
 NAMING TIPS:
 ------------
@@ -32,15 +32,15 @@ SPECIFICATIONS:
 
 CUSTOM APP ICON:
 ----------------
-To give the BakeRankBot.exe a custom icon:
+To give the ChatCollect.exe a custom icon:
 1. Create an .ico file (you can convert a PNG to ICO online).
-2. Name it "icon.ico".
-3. Place it in this "overlay" folder.
+2. Name it "exe_icon.ico".
+3. Place it in the main folder (where the .exe is).
 4. Run "build_exe.bat" again.
 
 START BY:
 ---------
-Delete this .txt file and add your first PNG image (e.g., baguette.png)
+Delete this .txt file and add your first PNG image (e.g., sword.png)
 Then add as many more as you want - the bot handles the rest!
 
 IMPORTANT:

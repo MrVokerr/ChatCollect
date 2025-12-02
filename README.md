@@ -3,22 +3,23 @@
 ## 🎮 What is ChatCollect?
 An interactive Twitch stream game where viewers "loot" virtual items, climb ranks, and trigger animations on your stream overlay! 
 
-**Optimized for Streamers:** Designed to run lightly in the background without affecting your gaming performance. Fully customizable via the included Setup tool.
+**Optimized for Streamers:** Designed to run lightly in the background without affecting your gaming performance. Fully customizable via the included GUI.
 
 ---
 
 ## 🚀 Quick Start
 
 ### 1. Configuration (First Time Setup)
-1. Run **`Setup.exe`**.
-2. **Commands Tab**: Customize your chat commands (Default: `!loot`, `!leaderboard`, etc.).
-3. **Messages Tab**: Customize the bot's responses to chat.
-4. **Events Tab**: Rename events to fit your theme (e.g., rename "Loot Drive" to "Raid").
-5. **Ranks Tab**: Create your own custom ranks and score thresholds.
-6. Click **"💾 Save Settings"**.
+1. Run **`ChatCollect.exe`**.
+2. Go to the **Setup** tab.
+3. **Commands**: Customize your chat commands (Default: `!loot`, `!leaderboard`, etc.).
+4. **Messages**: Customize the bot's responses to chat. Use the **"❓ Syntax Help"** button to see available placeholders.
+5. **Events**: Rename events to fit your theme (e.g., rename "Loot Drive" to "Raid").
+6. **Ranks**: Create your own custom ranks and score thresholds.
+7. Click **"💾 Save Configuration"**.
 
 ### 2. Launching the Bot
-1. Run **`ChatCollect.exe`**.
+1. Go to the **Collection** tab.
 2. Enter your credentials:
    - **OAuth Token**: Get from [TwitchTokenGenerator](https://twitchtokengenerator.com/) (Select 'Custom Scope' -> enable `chat:read` and `chat:edit`).
    - **Channel Name**: Your Twitch username.
@@ -43,18 +44,27 @@ Trigger special events to boost engagement. You can set custom durations (in min
     *   *Action:* Click **Start** to begin, **Stop** to end early.
 *   **🎒 Loot Drive**: Community challenge to collect **150 items** total.
     *   *Reward:* All participants get a **Prestige Star ⭐** if the goal is met.
-    *   *Icon:* Displays a Backpack 🎒 progress tracker.
+    *   *Progress:* The current progress (e.g., `45/150`) is automatically attached to every `!loot` message while active.
 *   **🧐 Bounty Hunter**: An NPC arrives craving a specific item (e.g., "Donut").
     *   *Action:* First person to loot that specific item gets a **+50 Point Bonus**.
 *   **⚔️ Contest**: A PvP tournament!
     *   *Action:* Viewers type `!contest` to join (Cost: 10 pts). Winner takes the entire pot!
     *   *Note:* A reminder is sent to chat halfway through the joining period.
 
-### **Test Lab**
-Test your overlay alerts without affecting player scores.
-*   **Rarity**: Choose from Standard, Ruined, Shiny, Golden, or Legendary.
-*   **Item**: Select any image from your overlay folder.
-*   **Test Button**: Triggers the alert on stream immediately.
+### **Overlay Settings**
+*   **Show Banner**: Toggles the notification banner on the overlay.
+*   **Show Leaderboard**: Toggles a live Top 10 Leaderboard on the overlay.
+
+### **Game Balance**
+Adjust the core mechanics of the game in the **Settings** tab:
+*   **Cooldown**: Set how often users can loot (Default: 60s).
+*   **Shiny Chance**: Set the rarity of Shiny items (Default: 1 in 10,000).
+*   **Legendary Chance**: Set the rarity of Legendary items (Default: 1 in 1,000).
+
+### **Backup & Restore**
+Never lose your settings!
+*   **Backup Config**: Saves a timestamped copy of your settings to the `backups/` folder.
+*   **Restore Config**: Load a previous configuration file.
 
 ---
 
@@ -64,10 +74,10 @@ Test your overlay alerts without affecting player scores.
 2. **Normal Items**: Add any `.png` image (e.g., `sword.png`, `potion.png`) directly in the `overlay` folder.
 3. **Legendary Items**: 
     *   Place images in the `overlay/legendary/` subfolder.
-    *   *Chance:* Viewers have a base 0.1% chance to loot these (triggers a massive explosion).
+    *   *Chance:* Viewers have a configurable chance to loot these (triggers a massive explosion).
 
 ### 💎 Shiny & Golden Logic
-*   **Shiny** (0.1% + Luck): Color-shifting glow + badge + explosion.
+*   **Shiny** (Base Chance + Luck): Color-shifting glow + badge + explosion.
 *   **Golden** (5% + Luck): Golden glow + 3x points.
 *   **Ruined** (5%): Item is destroyed + 0 points.
 
@@ -75,7 +85,7 @@ Test your overlay alerts without affecting player scores.
 
 ## 🎮 Twitch Commands for Viewers
 
-*Default commands (can be changed in Setup.exe):*
+*Default commands (can be changed in Setup tab):*
 
 - **!loot** - Try to find an item! Cooldown: 60s (10s during Rush Hour).
 - **!use [amount]** - Consume points to gain **Luck**.
@@ -101,34 +111,34 @@ Test your overlay alerts without affecting player scores.
 | 50000 | Celestial Hoarder |
 | 100000 | God of Loot |
 
-*(You can edit these in Setup.exe)*
+*(You can edit these in the Setup tab)*
 
 ---
 
 ## 🛠️ For Developers / Building from Source
 
-If you want to modify the code and rebuild the EXEs:
+If you want to modify the code and rebuild the EXE:
 
 1. **Install Python 3.14+**.
 2. **Install Dependencies**:
    ```bat
    install_requirements.bat
    ```
-3. **Build EXEs**:
+3. **Build EXE**:
    ```bat
    build_exe.bat
    ```
-   *   This will compile `ChatCollect.exe` and `Setup.exe`.
-   *   It automatically cleans up build artifacts and moves the EXEs to the root folder.
+   *   This will compile `ChatCollect.exe`.
+   *   It automatically cleans up build artifacts and moves the EXE to the root folder.
 
 ---
 
 ## 📂 File Structure
-*   `ChatCollect.exe` - The main bot application.
-*   `Setup.exe` - The configuration tool.
-*   `chatcollect_config.json` - Stores your settings (created by Setup.exe).
+*   `ChatCollect.exe` - The main application (Bot + Setup + Overlay Server).
+*   `chatcollect_config.json` - Stores your settings.
 *   `chatcollect_data.txt` - Player database (Do not edit while bot is running).
 *   `overlay/` - Folder for your images and the HTML overlay.
+*   `backups/` - Folder where configuration backups are stored.
 
 ---
 
