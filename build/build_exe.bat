@@ -16,11 +16,11 @@ if exist "build" rd /s /q "build"
 if exist "dist" rd /s /q "dist"
 if exist "ChatCollect.spec" del "ChatCollect.spec"
 
-if exist "ChatCollect.exe" (
-    del "ChatCollect.exe"
-    if exist "ChatCollect.exe" (
+if exist "..\ChatCollect.exe" (
+    del "..\ChatCollect.exe"
+    if exist "..\ChatCollect.exe" (
         echo.
-        echo ERROR: Cannot delete ChatCollect.exe. Is it still running?
+        echo ERROR: Cannot delete ..\ChatCollect.exe. Is it still running?
         echo Please close the bot and try again.
         echo.
         pause
@@ -32,7 +32,7 @@ echo.
 echo Building ChatCollect.exe...
 echo.
 
-REM Check for icon
+REM Check for icon in current folder
 set "ICON_PARAM=--icon=NONE"
 set "DATA_PARAM="
 if exist "exe_icon.ico" (
@@ -40,7 +40,7 @@ if exist "exe_icon.ico" (
     set "ICON_PARAM=--icon=exe_icon.ico"
     set "DATA_PARAM=--add-data "exe_icon.ico;.""
 ) else (
-    echo No exe_icon.ico found in root folder. Using default icon.
+    echo No exe_icon.ico found in build folder. Using default icon.
 )
 
 REM Determine Python Command
@@ -67,13 +67,13 @@ REM Build ChatCollect
     --hidden-import "websockets" ^
     --hidden-import "PyQt5" ^
     --hidden-import "aiohttp" ^
-    chatcollect_gui.py
+    "chatcollect_gui.py"
 
 echo.
 echo Moving executables to root folder...
 
 if exist "dist\ChatCollect.exe" (
-    move /Y "dist\ChatCollect.exe" "%~dp0ChatCollect.exe"
+    move /Y "dist\ChatCollect.exe" "..\ChatCollect.exe"
 ) else (
     echo ERROR: ChatCollect build failed!
 )
@@ -89,8 +89,7 @@ echo ========================================
 echo   Build Complete!
 echo ========================================
 echo.
-echo ChatCollect.exe is ready in this folder:
-echo %~dp0
+echo ChatCollect.exe is ready in the root folder.
 echo.
 echo Press any key to close...
 pause >nul

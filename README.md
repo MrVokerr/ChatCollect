@@ -119,13 +119,15 @@ Never lose your settings!
 
 If you want to modify the code and rebuild the EXE:
 
-1. **Install Python 3.14+**.
+1. **Install Python 3.10+**.
 2. **Install Dependencies**:
    ```bat
+   cd build
    install_requirements.bat
    ```
 3. **Build EXE**:
    ```bat
+   cd build
    build_exe.bat
    ```
    *   This will compile `ChatCollect.exe`.

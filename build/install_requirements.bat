@@ -1,10 +1,10 @@
 @echo off
-title BakeRank - Install Requirements
+title ChatCollect - Install Requirements
 cd /d "%~dp0"
 color 0B
 
 echo ========================================
-echo   BakeRank Bot - Dependency Installer
+echo   ChatCollect - Dependency Installer
 echo ========================================
 echo.
 
@@ -14,13 +14,10 @@ if %errorlevel% equ 0 (
     echo Python detected via py launcher:
     py --version
     echo.
-    echo Installing packages...
+    echo Installing packages from requirements.txt...
     echo.
     py -m pip install --upgrade pip
-    py -m pip install twitchio==2.9.1
-    py -m pip install websockets
-    py -m pip install PyQt5
-    py -m pip install pyinstaller
+    py -m pip install -r requirements.txt
     echo.
     echo ========================================
     echo   Installation Complete!
@@ -28,7 +25,7 @@ if %errorlevel% equ 0 (
     echo.
     py -m pip show twitchio websockets PyQt5 pyinstaller
     echo.
-    echo You can now run bakerank_bot.py
+    echo You can now run build_exe.bat
     echo.
     pause
     exit /b 0
@@ -40,13 +37,10 @@ if %errorlevel% equ 0 (
     echo Python detected:
     python --version
     echo.
-    echo Installing packages...
+    echo Installing packages from requirements.txt...
     echo.
     python -m pip install --upgrade pip
-    python -m pip install twitchio==2.9.1
-    python -m pip install websockets
-    python -m pip install PyQt5
-    python -m pip install pyinstaller
+    python -m pip install -r requirements.txt
     echo.
     echo ========================================
     echo   Installation Complete!
@@ -54,26 +48,12 @@ if %errorlevel% equ 0 (
     echo.
     python -m pip show twitchio websockets PyQt5 pyinstaller
     echo.
-    echo You can now run bakerank_bot.py
+    echo You can now run build_exe.bat
     echo.
     pause
     exit /b 0
 )
 
-REM If nothing works, show error
-echo ========================================
-echo ERROR: Python not found!
-echo ========================================
-echo.
-echo Python is not recognized. Please either:
-echo.
-echo 1. Reinstall Python and check "Add to PATH"
-echo    Download: https://www.python.org/downloads/
-echo.
-echo 2. Or manually run in PowerShell:
-echo    where.exe python
-echo.
-echo Then copy the path and run:
-echo    "C:\path\to\python.exe" -m pip install twitchio==2.9.1 websockets
-echo.
+echo ERROR: Python not found! Please install Python 3.10+ and add it to PATH.
 pause
+exit /b 1

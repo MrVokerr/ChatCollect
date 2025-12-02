@@ -21,14 +21,25 @@ import websockets
 from twitchio.ext import commands
 
 # ============ VERSION & UPDATE CONFIG ============
-CURRENT_VERSION = "1.0.0"
+CURRENT_VERSION = "1.0.2"
 # REPLACE THESE WITH YOUR ACTUAL GITHUB URLs
 UPDATE_VERSION_URL = "https://raw.githubusercontent.com/MrVokerr/ChatCollect/main/version.txt"
 UPDATE_EXE_URL = "https://github.com/MrVokerr/ChatCollect/releases/latest/download/ChatCollect.exe"
 
-CONFIG_FILE = "chatcollect_config.json"
-DB_PATH = "chatcollect_data.txt"
-OVERLAY_FOLDER = "overlay"
+# ============ PATH CONFIGURATION ============
+if getattr(sys, 'frozen', False):
+    # Running as compiled EXE
+    BASE_PATH = os.path.dirname(sys.executable)
+else:
+    # Running as script
+    BASE_PATH = os.path.dirname(os.path.abspath(__file__))
+    # If running from build/ folder, assets are in parent directory
+    if os.path.basename(BASE_PATH).lower() == "build":
+        BASE_PATH = os.path.dirname(BASE_PATH)
+
+CONFIG_FILE = os.path.join(BASE_PATH, "chatcollect_config.json")
+DB_PATH = os.path.join(BASE_PATH, "chatcollect_data.txt")
+OVERLAY_FOLDER = os.path.join(BASE_PATH, "overlay")
 COOLDOWN = 60
 
 DEFAULT_CONFIG = {
