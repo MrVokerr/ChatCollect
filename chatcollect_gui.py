@@ -10,7 +10,8 @@ from ctypes import windll, byref, c_int
 from datetime import datetime
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
                              QHBoxLayout, QLabel, QLineEdit, QPushButton, 
-                             QTextEdit, QGroupBox, QMessageBox, QComboBox, QGridLayout, QCheckBox)
+                             QTextEdit, QGroupBox, QMessageBox, QComboBox, QGridLayout, QCheckBox, 
+                             QTabWidget, QFileDialog, QSpinBox, QFontComboBox, QFormLayout, QScrollArea)
 from PyQt5.QtCore import QThread, pyqtSignal, Qt
 from PyQt5.QtGui import QFont, QIntValidator, QIcon
 import websockets
@@ -186,7 +187,7 @@ db = PlayerDatabase(DB_PATH)
 player_data = db.players
 
 # ============ BAKED GOODS HELPERS ============
-def choose_loot_item(rarity="standard"):
+def choose_loot_item(rarity="standard", legendary_chance_1_in_x=1000):
     """Choose a baked good based on rarity"""
     legendary = asset_manager.legendary_items
     normal = asset_manager.normal_items
@@ -201,8 +202,10 @@ def choose_loot_item(rarity="standard"):
         is_legendary = choice in legendary
         return choice, is_legendary
 
-    # Standard/Golden/Ruined: 0.1% chance of Legendary, else Normal
-    if legendary and random.random() < 0.001:
+    # Standard/Golden/Ruined: Configurable chance of Legendary, else Normal
+    chance = 1.0 / max(1, legendary_chance_1_in_x)
+    
+    if legendary and random.random() < chance:
         return random.choice(legendary), True
     else:
         return random.choice(normal), False
@@ -505,11 +508,11 @@ class ChatCollectBot(commands.Bot):
         luck = player_data[username]['luck']
 
         # COOLDOWN CHECK
-        cooldown_time = COOLDOWN
+        cooldown_time = int(self.config.get("cooldown", COOLDOWN))
         
         # Check Rush Hour
         if self.rush_hour_active:
-            cooldown_time = 10 # Reduced cooldown
+            cooldown_time = max(1, cooldown_time // 6) # Reduced cooldown
         
         if now - last_bake_time < cooldown_time:
             remaining = int(cooldown_time - (now - last_bake_time))
@@ -520,7 +523,12 @@ class ChatCollectBot(commands.Bot):
         old_rank_title = self.get_rank_title(bake_score)
         
         # Rarity Logic
-        shiny_prob = 0.0001 + (luck / 1000.0)
+        shiny_chance_1_in_x = int(self.config.get("shiny_chance", 10000))
+        legendary_chance_1_in_x = int(self.config.get("legendary_chance", 1000))
+        
+        base_shiny_prob = 1.0 / max(1, shiny_chance_1_in_x)
+        shiny_prob = base_shiny_prob + (luck / 1000.0)
+        
         golden_prob = 0.05 + (luck / 200.0)
         ruined_prob = 0.05
         
@@ -528,6 +536,10 @@ class ChatCollectBot(commands.Bot):
         
         rarity = "standard"
         points_gained = 1
+        
+        # Loot Points Config
+        loot_min = int(self.config.get("loot_min", 1))
+        loot_max = int(self.config.get("loot_max", 1))
         
         if rand_val < shiny_prob:
             rarity = "shiny"
@@ -541,13 +553,13 @@ class ChatCollectBot(commands.Bot):
             points_gained = 3
         else:
             rarity = "standard"
-            points_gained = 1
+            points_gained = random.randint(loot_min, loot_max)
             
         # Reset luck
         player_data[username]['luck'] = 0.0
         
         # Choose item
-        loot_item, is_legendary_item = choose_loot_item(rarity)
+        loot_item, is_legendary_item = choose_loot_item(rarity, legendary_chance_1_in_x)
         item_display_name = format_item_name(loot_item)
         
         # Legendary Bonus (Override points if legendary, unless already higher)
@@ -903,26 +915,8 @@ class ChatCollectGUI(QMainWindow):
 
         return os.path.join(base_path, relative_path)
         
-    def init_ui(self):
-        self.setWindowTitle("ChatCollect")
-        
-        # Set Window Icon
-        icon_path = self.resource_path("exe_icon.ico")
-        if os.path.exists(icon_path):
-            self.setWindowIcon(QIcon(icon_path))
-
-        self.setGeometry(100, 100, 700, 600)
-        
-        # Enable Dark Title Bar (Windows 10/11)
-        try:
-            # DWMWA_USE_IMMERSIVE_DARK_MODE = 20
-            hwnd = int(self.winId())
-            windll.dwmapi.DwmSetWindowAttribute(hwnd, 20, byref(c_int(1)), 4)
-        except Exception:
-            pass
-
-        # Dark mode stylesheet
-        self.setStyleSheet("""
+    def get_dark_stylesheet(self):
+        return """
             QMainWindow {
                 background-color: #1e1e1e;
             }
@@ -981,11 +975,66 @@ class ChatCollectGUI(QMainWindow):
                 color: #e0e0e0;
                 selection-background-color: #4a4a4a;
             }
-        """)
+            QTabWidget::pane {
+                border: 1px solid #3d3d3d;
+                background: #1e1e1e;
+            }
+            QTabBar::tab {
+                background: #2d2d2d;
+                color: #e0e0e0;
+                padding: 8px 20px;
+                border: 1px solid #3d3d3d;
+                border-bottom: none;
+                border-top-left-radius: 4px;
+                border-top-right-radius: 4px;
+                min-width: 100px;
+            }
+            QTabBar::tab:selected {
+                background: #1e1e1e;
+                border-bottom: 1px solid #1e1e1e;
+                font-weight: bold;
+            }
+        """
+
+    def init_ui(self):
+        self.setWindowTitle("ChatCollect")
+        
+        # Set Window Icon
+        icon_path = self.resource_path("exe_icon.ico")
+        if os.path.exists(icon_path):
+            self.setWindowIcon(QIcon(icon_path))
+
+        self.setGeometry(100, 100, 700, 600)
+        
+        # Enable Dark Title Bar (Windows 10/11)
+        try:
+            # DWMWA_USE_IMMERSIVE_DARK_MODE = 20
+            hwnd = int(self.winId())
+            windll.dwmapi.DwmSetWindowAttribute(hwnd, 20, byref(c_int(1)), 4)
+        except Exception:
+            pass
+
+        # Dark mode stylesheet
+        self.setStyleSheet(self.get_dark_stylesheet())
         
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
-        layout = QVBoxLayout(central_widget)
+        main_layout = QVBoxLayout(central_widget)
+        
+        # Create Tabs
+        self.tabs = QTabWidget()
+        self.tab_collection = QWidget()
+        self.tab_setup = QWidget()
+        self.tab_settings = QWidget()
+        
+        self.tabs.addTab(self.tab_collection, "Collection")
+        self.tabs.addTab(self.tab_setup, "Setup")
+        self.tabs.addTab(self.tab_settings, "Settings")
+        
+        main_layout.addWidget(self.tabs)
+        
+        # --- Tab 1: Collection (Existing UI) ---
+        layout = QVBoxLayout(self.tab_collection)
         
         # Configuration Group
         config_group = QGroupBox("Bot Configuration")
@@ -1212,8 +1261,287 @@ class ChatCollectGUI(QMainWindow):
         log_group.setLayout(log_layout)
         layout.addWidget(log_group)
         
+        # --- Tab 2: Setup ---
+        self.setup_setup_tab()
+
+        # --- Tab 3: Settings ---
+        self.setup_settings_tab()
+        
         self.log("🍞 ChatCollect Bot GUI Ready")
         self.log("Configure your settings and click 'Start Bot'")
+
+    def setup_setup_tab(self):
+        layout = QVBoxLayout(self.tab_setup)
+        
+        # Nested Tabs
+        self.setup_tabs = QTabWidget()
+        layout.addWidget(self.setup_tabs)
+        
+        self.setup_inputs = {}
+        
+        # --- Commands Tab ---
+        cmd_tab = QWidget()
+        cmd_layout = QFormLayout()
+        self.add_config_input(cmd_layout, "commands", "loot", "Loot Command:")
+        self.add_config_input(cmd_layout, "commands", "leaderboard", "Leaderboard Command:")
+        self.add_config_input(cmd_layout, "commands", "contest", "Contest Command:")
+        self.add_config_input(cmd_layout, "commands", "use", "Use Item Command:")
+        cmd_tab.setLayout(cmd_layout)
+        self.setup_tabs.addTab(cmd_tab, "💬 Commands")
+
+        # --- Messages Tab ---
+        msg_tab = QWidget()
+        msg_layout = QVBoxLayout()
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll_content = QWidget()
+        scroll_layout = QFormLayout(scroll_content)
+        
+        self.add_config_input(scroll_layout, "messages", "cooldown", "Cooldown Message:")
+        self.add_config_input(scroll_layout, "messages", "loot_success", "Loot Success:")
+        self.add_config_input(scroll_layout, "messages", "loot_legendary", "Legendary Loot:")
+        self.add_config_input(scroll_layout, "messages", "rank_up", "Rank Up:")
+        self.add_config_input(scroll_layout, "messages", "contest_start", "Contest Start:")
+        self.add_config_input(scroll_layout, "messages", "contest_winner", "Contest Winner:")
+        self.add_config_input(scroll_layout, "messages", "rush_hour_start", "Rush Hour Start:")
+        self.add_config_input(scroll_layout, "messages", "loot_drive_start", "Loot Drive Start:")
+        self.add_config_input(scroll_layout, "messages", "bounty_hunter_spawn", "Bounty Hunter Spawn:")
+        self.add_config_input(scroll_layout, "messages", "bounty_hunter_satisfied", "Bounty Hunter Satisfied:")
+        
+        scroll.setWidget(scroll_content)
+        msg_layout.addWidget(scroll)
+        msg_tab.setLayout(msg_layout)
+        self.setup_tabs.addTab(msg_tab, "📢 Messages")
+
+        # --- Events Tab ---
+        evt_tab = QWidget()
+        evt_layout = QFormLayout()
+        self.add_config_input(evt_layout, "events", "rush_hour_name", "Rush Hour Name:")
+        self.add_config_input(evt_layout, "events", "loot_drive_name", "Loot Drive Name:")
+        self.add_config_input(evt_layout, "events", "bounty_hunter_name", "Bounty Hunter Name:")
+        self.add_config_input(evt_layout, "events", "contest_name", "Contest Name:")
+        evt_tab.setLayout(evt_layout)
+        self.setup_tabs.addTab(evt_tab, "🎉 Events")
+
+        # --- Ranks Tab ---
+        ranks_tab = QWidget()
+        ranks_layout = QVBoxLayout()
+        
+        # Scroll Area for Ranks
+        rank_scroll = QScrollArea()
+        rank_scroll.setWidgetResizable(True)
+        rank_scroll_content = QWidget()
+        self.ranks_layout = QVBoxLayout(rank_scroll_content)
+        
+        # Load ranks
+        self.rank_inputs = []
+        current_ranks = self.config.get("ranks", DEFAULT_CONFIG["ranks"])
+        current_ranks.sort(key=lambda x: x["score"])
+        
+        for r in current_ranks:
+            self.add_rank_row(r["score"], r["title"])
+            
+        rank_scroll.setWidget(rank_scroll_content)
+        ranks_layout.addWidget(rank_scroll)
+        
+        # Add Rank Button
+        add_rank_btn = QPushButton("➕ Add Rank")
+        add_rank_btn.clicked.connect(lambda: self.add_rank_row(0, "New Rank"))
+        ranks_layout.addWidget(add_rank_btn)
+        
+        ranks_tab.setLayout(ranks_layout)
+        self.setup_tabs.addTab(ranks_tab, "🏆 Ranks")
+        
+        # Save Button for Setup Tab
+        save_btn = QPushButton("💾 Save Configuration")
+        save_btn.clicked.connect(self.save_configuration)
+        save_btn.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold; padding: 10px; margin-top: 10px;")
+        layout.addWidget(save_btn)
+
+    def add_config_input(self, layout, category, key, label_text):
+        layout.addRow(QLabel(label_text))
+        input_field = QLineEdit()
+        # Get value safely
+        val = self.config.get(category, {}).get(key, "")
+        input_field.setText(str(val))
+        layout.addRow(input_field)
+        
+        if category not in self.setup_inputs:
+            self.setup_inputs[category] = {}
+        self.setup_inputs[category][key] = input_field
+
+    def add_rank_row(self, score, title):
+        row_widget = QWidget()
+        row_layout = QHBoxLayout(row_widget)
+        row_layout.setContentsMargins(0, 0, 0, 0)
+        
+        score_input = QLineEdit(str(score))
+        score_input.setValidator(QIntValidator())
+        score_input.setFixedWidth(80)
+        score_input.setPlaceholderText("Score")
+        
+        title_input = QLineEdit(title)
+        title_input.setPlaceholderText("Rank Title")
+        
+        del_btn = QPushButton("❌")
+        del_btn.setFixedWidth(30)
+        del_btn.setStyleSheet("background-color: #d32f2f; color: white; border: none;")
+        del_btn.clicked.connect(lambda: self.remove_rank_row(row_widget, score_input, title_input))
+        
+        row_layout.addWidget(QLabel("Score:"))
+        row_layout.addWidget(score_input)
+        row_layout.addWidget(QLabel("Title:"))
+        row_layout.addWidget(title_input)
+        row_layout.addWidget(del_btn)
+        
+        self.ranks_layout.addWidget(row_widget)
+        self.rank_inputs.append((score_input, title_input))
+
+    def remove_rank_row(self, widget, score_input, title_input):
+        widget.deleteLater()
+        if (score_input, title_input) in self.rank_inputs:
+            self.rank_inputs.remove((score_input, title_input))
+
+    def setup_settings_tab(self):
+        layout = QVBoxLayout(self.tab_settings)
+        
+        # Appearance Group
+        appearance_group = QGroupBox("Appearance")
+        appearance_layout = QGridLayout()
+        
+        # Theme
+        appearance_layout.addWidget(QLabel("Theme:"), 0, 0)
+        self.theme_combo = QComboBox()
+        self.theme_combo.addItems(["Dark Mode", "Light Mode", "System Default"])
+        self.theme_combo.setCurrentText(self.config.get('theme', 'Dark Mode'))
+        self.theme_combo.currentTextChanged.connect(self.apply_theme)
+        appearance_layout.addWidget(self.theme_combo, 0, 1)
+        
+        # Font Family
+        appearance_layout.addWidget(QLabel("Font Family:"), 1, 0)
+        self.font_combo = QFontComboBox()
+        current_font = self.config.get('font_family', 'Segoe UI')
+        self.font_combo.setCurrentFont(QFont(current_font))
+        self.font_combo.currentFontChanged.connect(self.apply_font)
+        appearance_layout.addWidget(self.font_combo, 1, 1)
+        
+        # Font Size
+        appearance_layout.addWidget(QLabel("Font Size:"), 2, 0)
+        self.font_size_spin = QSpinBox()
+        self.font_size_spin.setRange(8, 24)
+        self.font_size_spin.setValue(self.config.get('font_size', 11))
+        self.font_size_spin.valueChanged.connect(self.apply_font)
+        appearance_layout.addWidget(self.font_size_spin, 2, 1)
+        
+        appearance_group.setLayout(appearance_layout)
+        layout.addWidget(appearance_group)
+        
+        # Data Management Group
+        data_group = QGroupBox("Data Management")
+        data_layout = QGridLayout()
+        
+        # Output Directory
+        data_layout.addWidget(QLabel("Output Directory:"), 0, 0)
+        self.output_dir_input = QLineEdit()
+        self.output_dir_input.setText(self.config.get('output_dir', os.getcwd()))
+        self.output_dir_input.setReadOnly(True)
+        data_layout.addWidget(self.output_dir_input, 0, 1)
+        
+        self.browse_btn = QPushButton("Browse...")
+        self.browse_btn.clicked.connect(self.browse_output_dir)
+        data_layout.addWidget(self.browse_btn, 0, 2)
+        
+        # Auto-Save Interval
+        data_layout.addWidget(QLabel("Auto-Save Interval (min):"), 1, 0)
+        self.autosave_spin = QSpinBox()
+        self.autosave_spin.setRange(1, 60)
+        self.autosave_spin.setValue(self.config.get('autosave_interval', 5))
+        self.autosave_spin.valueChanged.connect(self.save_settings_change)
+        data_layout.addWidget(self.autosave_spin, 1, 1)
+        
+        data_group.setLayout(data_layout)
+        layout.addWidget(data_group)
+        
+        # Game Balance Group
+        balance_group = QGroupBox("Game Balance")
+        balance_layout = QGridLayout()
+        
+        # Cooldown
+        balance_layout.addWidget(QLabel("Cooldown (seconds):"), 0, 0)
+        self.cooldown_spin = QSpinBox()
+        self.cooldown_spin.setRange(1, 3600)
+        self.cooldown_spin.setValue(int(self.config.get('cooldown', 60)))
+        self.cooldown_spin.valueChanged.connect(self.save_settings_change)
+        balance_layout.addWidget(self.cooldown_spin, 0, 1)
+        
+        # Shiny Chance
+        balance_layout.addWidget(QLabel("Shiny Chance (1 in X):"), 1, 0)
+        self.shiny_chance_spin = QSpinBox()
+        self.shiny_chance_spin.setRange(1, 1000000)
+        self.shiny_chance_spin.setValue(int(self.config.get('shiny_chance', 10000)))
+        self.shiny_chance_spin.valueChanged.connect(self.save_settings_change)
+        balance_layout.addWidget(self.shiny_chance_spin, 1, 1)
+        
+        # Legendary Chance
+        balance_layout.addWidget(QLabel("Legendary Chance (1 in X):"), 2, 0)
+        self.legendary_chance_spin = QSpinBox()
+        self.legendary_chance_spin.setRange(1, 1000000)
+        self.legendary_chance_spin.setValue(int(self.config.get('legendary_chance', 1000)))
+        self.legendary_chance_spin.valueChanged.connect(self.save_settings_change)
+        balance_layout.addWidget(self.legendary_chance_spin, 2, 1)
+        
+        # Loot Points Range
+        balance_layout.addWidget(QLabel("Normal Loot Points (Min - Max):"), 3, 0)
+        loot_range_layout = QHBoxLayout()
+        self.loot_min_spin = QSpinBox()
+        self.loot_min_spin.setRange(1, 1000)
+        self.loot_min_spin.setValue(int(self.config.get('loot_min', 1)))
+        self.loot_min_spin.valueChanged.connect(self.save_settings_change)
+        loot_range_layout.addWidget(self.loot_min_spin)
+        
+        loot_range_layout.addWidget(QLabel("-"))
+        
+        self.loot_max_spin = QSpinBox()
+        self.loot_max_spin.setRange(1, 1000)
+        self.loot_max_spin.setValue(int(self.config.get('loot_max', 1)))
+        self.loot_max_spin.valueChanged.connect(self.save_settings_change)
+        loot_range_layout.addWidget(self.loot_max_spin)
+        
+        balance_layout.addLayout(loot_range_layout, 3, 1)
+        
+        balance_group.setLayout(balance_layout)
+        layout.addWidget(balance_group)
+        
+        layout.addStretch()
+
+    def apply_theme(self, theme_name):
+        self.config['theme'] = theme_name
+        if theme_name == "Light Mode":
+            self.setStyleSheet("") 
+        elif theme_name == "Dark Mode":
+            self.setStyleSheet(self.get_dark_stylesheet())
+        elif theme_name == "System Default":
+            self.setStyleSheet("") # Fallback to system
+        self.save_configuration()
+
+    def apply_font(self):
+        font = self.font_combo.currentFont()
+        size = self.font_size_spin.value()
+        font.setPointSize(size)
+        QApplication.setFont(font)
+        self.config['font_family'] = font.family()
+        self.config['font_size'] = size
+        self.save_configuration()
+
+    def browse_output_dir(self):
+        directory = QFileDialog.getExistingDirectory(self, "Select Output Directory")
+        if directory:
+            self.output_dir_input.setText(directory)
+            self.config['output_dir'] = directory
+            self.save_configuration()
+
+    def save_settings_change(self):
+        self.save_configuration()
         
     def load_config(self):
         if os.path.exists(CONFIG_FILE):
@@ -1242,11 +1570,54 @@ class ChatCollectGUI(QMainWindow):
         self.config['channel'] = self.channel_input.text()
         self.config['show_banner'] = self.show_banner_cb.isChecked()
         
+        # New Settings
+        self.config['theme'] = self.theme_combo.currentText()
+        self.config['font_family'] = self.font_combo.currentFont().family()
+        self.config['font_size'] = self.font_size_spin.value()
+        self.config['output_dir'] = self.output_dir_input.text()
+        self.config['autosave_interval'] = self.autosave_spin.value()
+        
+        # Game Balance
+        self.config['cooldown'] = self.cooldown_spin.value()
+        self.config['shiny_chance'] = self.shiny_chance_spin.value()
+        self.config['legendary_chance'] = self.legendary_chance_spin.value()
+        self.config['loot_min'] = self.loot_min_spin.value()
+        self.config['loot_max'] = self.loot_max_spin.value()
+
+        # --- Save Setup Tab Inputs ---
+        if hasattr(self, 'setup_inputs'):
+            for category, inputs in self.setup_inputs.items():
+                if category not in self.config:
+                    self.config[category] = {}
+                for key, input_field in inputs.items():
+                    self.config[category][key] = input_field.text()
+
+        # --- Save Ranks ---
+        if hasattr(self, 'rank_inputs'):
+            new_ranks = []
+            for score_input, title_input in self.rank_inputs:
+                try:
+                    score = int(score_input.text())
+                    title = title_input.text()
+                    if title:
+                        new_ranks.append({"score": score, "title": title})
+                except ValueError:
+                    continue
+            self.config['ranks'] = new_ranks
+        
         try:
             with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
                 json.dump(self.config, f, indent=4)
             self.log("✅ Configuration saved successfully")
-            QMessageBox.information(self, "Success", "Configuration saved!")
+            
+            # Update running bot config
+            if self.bot_thread and self.bot_thread.bot:
+                self.bot_thread.bot.config = self.config
+                self.log("🔄 Bot configuration updated live!")
+
+            # Only show message box if triggered manually (not by auto-save or spinbox change)
+            if self.sender() == self.save_config_btn:
+                QMessageBox.information(self, "Success", "Configuration saved!")
         except Exception as e:
             self.log(f"❌ Error saving config: {e}")
             QMessageBox.critical(self, "Error", f"Failed to save config: {e}")
@@ -1372,7 +1743,8 @@ class ChatCollectGUI(QMainWindow):
 
     def test_explosion(self):
         """Send test explosion to overlay (doesn't count toward scores)"""
-        loot_item, is_legendary = choose_loot_item()
+        legendary_chance = int(self.config.get("legendary_chance", 1000))
+        loot_item, is_legendary = choose_loot_item(legendary_chance_1_in_x=legendary_chance)
         item_display_name = format_item_name(loot_item)
         
         message = {

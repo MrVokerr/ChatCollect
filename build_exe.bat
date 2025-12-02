@@ -10,13 +10,11 @@ echo.
 
 echo Force closing running instances...
 taskkill /F /IM "ChatCollect.exe" >nul 2>&1
-taskkill /F /IM "Setup.exe" >nul 2>&1
 
 echo Cleaning up previous builds...
 if exist "build" rd /s /q "build"
 if exist "dist" rd /s /q "dist"
 if exist "ChatCollect.spec" del "ChatCollect.spec"
-if exist "Setup.spec" del "Setup.spec"
 
 if exist "ChatCollect.exe" (
     del "ChatCollect.exe"
@@ -24,17 +22,6 @@ if exist "ChatCollect.exe" (
         echo.
         echo ERROR: Cannot delete ChatCollect.exe. Is it still running?
         echo Please close the bot and try again.
-        echo.
-        pause
-        exit /b 1
-    )
-)
-if exist "Setup.exe" (
-    del "Setup.exe"
-    if exist "Setup.exe" (
-        echo.
-        echo ERROR: Cannot delete Setup.exe. Is it still running?
-        echo Please close the setup tool and try again.
         echo.
         pause
         exit /b 1
@@ -83,15 +70,6 @@ REM Build ChatCollect
     chatcollect_gui.py
 
 echo.
-echo Building Setup.exe...
-echo.
-
-REM Build Setup
-%PY_CMD% -m PyInstaller --clean --noconfirm --onefile --windowed --name "Setup" %ICON_PARAM% %DATA_PARAM% ^
-    --hidden-import "PyQt5" ^
-    setup_gui.py
-
-echo.
 echo Moving executables to root folder...
 
 if exist "dist\ChatCollect.exe" (
@@ -100,25 +78,18 @@ if exist "dist\ChatCollect.exe" (
     echo ERROR: ChatCollect build failed!
 )
 
-if exist "dist\Setup.exe" (
-    move /Y "dist\Setup.exe" "%~dp0Setup.exe"
-) else (
-    echo ERROR: Setup build failed!
-)
-
 echo.
 echo Cleaning up build folders...
 if exist "build" rd /s /q "build"
 if exist "dist" rd /s /q "dist"
 if exist "ChatCollect.spec" del "ChatCollect.spec"
-if exist "Setup.spec" del "Setup.spec"
 
 echo.
 echo ========================================
 echo   Build Complete!
 echo ========================================
 echo.
-echo ChatCollect.exe and Setup.exe are ready in this folder:
+echo ChatCollect.exe is ready in this folder:
 echo %~dp0
 echo.
 echo Press any key to close...
