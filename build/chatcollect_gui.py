@@ -21,7 +21,7 @@ import websockets
 from twitchio.ext import commands
 
 # ============ VERSION & UPDATE CONFIG ============
-CURRENT_VERSION = "1.0.6"
+CURRENT_VERSION = "1.0.7"
 # REPLACE THESE WITH YOUR ACTUAL GITHUB URLs
 UPDATE_VERSION_URL = "https://raw.githubusercontent.com/MrVokerr/ChatCollect/main/version.txt"
 UPDATE_EXE_URL = "https://github.com/MrVokerr/ChatCollect/releases/latest/download/ChatCollect.exe"
@@ -70,6 +70,15 @@ DEFAULT_CONFIG = {
         "loot_drive_name": "Loot Drive",
         "bounty_hunter_name": "Bounty Hunter",
         "contest_name": "Contest"
+    },
+    "points": {
+        "shiny": 10,
+        "golden": 3,
+        "ruined": 0,
+        "legendary": 5,
+        "bounty_hunter": 50,
+        "standard_min": 1,
+        "standard_max": 1
     },
     "ranks": [
         {"score": 0, "title": "Novice Collector"},
@@ -628,19 +637,20 @@ class ChatCollectBot(commands.Bot):
         points_gained = 1
         
         # Loot Points Config
-        loot_min = int(self.config.get("loot_min", 1))
-        loot_max = int(self.config.get("loot_max", 1))
+        pts_cfg = self.config.get("points", DEFAULT_CONFIG["points"])
+        loot_min = int(pts_cfg.get("standard_min", 1))
+        loot_max = int(pts_cfg.get("standard_max", 1))
         
         if rand_val < shiny_prob:
             rarity = "shiny"
-            points_gained = 10
+            points_gained = int(pts_cfg.get("shiny", 10))
             player_data[username]['shinies'] += 1
         elif rand_val < (shiny_prob + ruined_prob):
             rarity = "ruined"
-            points_gained = 0
+            points_gained = int(pts_cfg.get("ruined", 0))
         elif rand_val < (shiny_prob + ruined_prob + golden_prob):
             rarity = "golden"
-            points_gained = 3
+            points_gained = int(pts_cfg.get("golden", 3))
         else:
             rarity = "standard"
             points_gained = random.randint(loot_min, loot_max)
@@ -654,20 +664,21 @@ class ChatCollectBot(commands.Bot):
         
         # Legendary Bonus (Override points if legendary, unless already higher)
         if is_legendary_item:
-            if points_gained < 5:
-                points_gained = 5
+            leg_pts = int(pts_cfg.get("legendary", 5))
+            if points_gained < leg_pts:
+                points_gained = leg_pts
 
         # Bounty Hunter Check
         critic_bonus = 0
         critic_msg = ""
         if self.bounty_hunter_active and self.bounty_hunter_craving == loot_item:
-            critic_bonus = 50
+            critic_bonus = int(pts_cfg.get("bounty_hunter", 50))
             points_gained += critic_bonus
             self.bounty_hunter_active = False
             self.bounty_hunter_craving = None
             
             bh_msg = msgs.get("bounty_hunter_satisfied", DEFAULT_CONFIG["messages"]["bounty_hunter_satisfied"])
-            critic_msg = f" {bh_msg.format(username=username, points=50)}"
+            critic_msg = f" {bh_msg.format(username=username, points=critic_bonus)}"
             
             self.log_callback(f"🧐 {username} satisfied the {evts['bounty_hunter_name']}!")
             self._send_status_update()
@@ -1146,17 +1157,18 @@ class ChatCollectGUI(QMainWindow):
         return os.path.join(base_path, relative_path)
         
     def get_dark_stylesheet(self):
-        return """
-            QMainWindow {
+        font_size = self.config.get('font_size', 10)
+        return f"""
+            QMainWindow {{
                 background-color: #121212;
-            }
-            QWidget {
+            }}
+            QWidget {{
                 background-color: #121212;
                 color: #e0e0e0;
                 font-family: 'Segoe UI', sans-serif;
-                font-size: 10pt;
-            }
-            QGroupBox {
+                font-size: {font_size}pt;
+            }}
+            QGroupBox {{
                 background-color: #1e1e1e;
                 border: 1px solid #333;
                 border-radius: 8px;
@@ -1164,19 +1176,19 @@ class ChatCollectGUI(QMainWindow):
                 padding-top: 0px;
                 font-weight: bold;
                 color: #ffffff;
-            }
-            QGroupBox::title {
+            }}
+            QGroupBox::title {{
                 subcontrol-origin: margin;
                 subcontrol-position: top left;
                 left: 15px;
                 padding: 0 5px;
                 background-color: #1e1e1e; 
-            }
-            QLabel {
+            }}
+            QLabel {{
                 color: #b0b0b0;
                 background-color: transparent;
-            }
-            QLineEdit {
+            }}
+            QLineEdit {{
                 background-color: #252525;
                 border: 1px solid #333;
                 border-radius: 6px;
@@ -1184,12 +1196,12 @@ class ChatCollectGUI(QMainWindow):
                 color: #ffffff;
                 selection-background-color: #007acc;
                 qproperty-alignment: 'AlignCenter';
-            }
-            QLineEdit:focus {
+            }}
+            QLineEdit:focus {{
                 border: 1px solid #007acc;
                 background-color: #2d2d2d;
-            }
-            QPushButton {
+            }}
+            QPushButton {{
                 background-color: #007acc;
                 border: none;
                 border-radius: 6px;
@@ -1198,35 +1210,35 @@ class ChatCollectGUI(QMainWindow):
                 font-weight: bold;
                 text-transform: uppercase;
                 letter-spacing: 0.5px;
-            }
-            QPushButton:hover {
+            }}
+            QPushButton:hover {{
                 background-color: #0062a3;
                 margin-top: 2px;
                 border-bottom: 2px solid #004080;
-            }
-            QPushButton:pressed {
+            }}
+            QPushButton:pressed {{
                 background-color: #005a9e;
                 margin-top: 4px;
                 border-bottom: none;
-            }
-            QPushButton:disabled {
+            }}
+            QPushButton:disabled {{
                 background-color: #333;
                 color: #777;
                 border: none;
-            }
-            QTextEdit {
+            }}
+            QTextEdit {{
                 background-color: #1e1e1e;
                 border: 1px solid #333;
                 border-radius: 6px;
                 color: #e0e0e0;
                 selection-background-color: #007acc;
-            }
-            QTabWidget::pane {
+            }}
+            QTabWidget::pane {{
                 border: 1px solid #333;
                 background: #1e1e1e;
                 border-radius: 6px;
-            }
-            QTabBar::tab {
+            }}
+            QTabBar::tab {{
                 background: #2d2d2d;
                 color: #e0e0e0;
                 padding: 10px 25px;
@@ -1236,22 +1248,22 @@ class ChatCollectGUI(QMainWindow):
                 border-top-right-radius: 6px;
                 min-width: 100px;
                 margin-right: 2px;
-            }
-            QTabBar::tab:selected {
+            }}
+            QTabBar::tab:selected {{
                 background: #1e1e1e;
                 border-bottom: 2px solid #007acc;
                 font-weight: bold;
                 color: #ffffff;
-            }
-            QComboBox {
+            }}
+            QComboBox {{
                 background-color: #252525;
                 border: 1px solid #333;
                 border-radius: 6px;
                 padding: 5px 10px;
                 color: #ffffff;
                 min-width: 6em;
-            }
-            QComboBox::drop-down {
+            }}
+            QComboBox::drop-down {{
                 subcontrol-origin: padding;
                 subcontrol-position: top right;
                 width: 25px;
@@ -1261,96 +1273,97 @@ class ChatCollectGUI(QMainWindow):
                 border-top-right-radius: 6px;
                 border-bottom-right-radius: 6px;
                 background-color: #2d2d2d;
-            }
-            QComboBox::down-arrow {
+            }}
+            QComboBox::down-arrow {{
                 width: 0px;
                 height: 0px;
                 border-left: 5px solid transparent;
                 border-right: 5px solid transparent;
                 border-top: 6px solid #e0e0e0;
                 margin-right: 2px;
-            }
-            QComboBox QAbstractItemView {
+            }}
+            QComboBox QAbstractItemView {{
                 background-color: #252525;
                 border: 1px solid #333;
                 selection-background-color: #007acc;
                 outline: none;
-            }
-            QComboBox QAbstractItemView {
+            }}
+            QComboBox QAbstractItemView {{
                 background-color: #252525;
                 border: 1px solid #333;
                 selection-background-color: #007acc;
                 outline: none;
-            }
-            QPushButton#startBtn { background-color: #2ecc71; }
-            QPushButton#startBtn:hover { background-color: #27ae60; }
-            QPushButton#startBtn:pressed { background-color: #1e8449; }
+            }}
+            QPushButton#startBtn {{ background-color: #2ecc71; }}
+            QPushButton#startBtn:hover {{ background-color: #27ae60; }}
+            QPushButton#startBtn:pressed {{ background-color: #1e8449; }}
 
-            QPushButton#stopBtn { background-color: #e74c3c; }
-            QPushButton#stopBtn:hover { background-color: #c0392b; }
-            QPushButton#stopBtn:pressed { background-color: #922b21; }
+            QPushButton#stopBtn {{ background-color: #e74c3c; }}
+            QPushButton#stopBtn:hover {{ background-color: #c0392b; }}
+            QPushButton#stopBtn:pressed {{ background-color: #922b21; }}
 
-            QPushButton#testExplosionBtn { background-color: #e67e22; }
-            QPushButton#testExplosionBtn:hover { background-color: #d35400; }
-            QPushButton#testExplosionBtn:pressed { background-color: #a04000; }
+            QPushButton#testExplosionBtn {{ background-color: #e67e22; }}
+            QPushButton#testExplosionBtn:hover {{ background-color: #d35400; }}
+            QPushButton#testExplosionBtn:pressed {{ background-color: #a04000; }}
 
-            QPushButton#testLegendaryBtn { background-color: #f1c40f; color: #2c3e50; }
-            QPushButton#testLegendaryBtn:hover { background-color: #f39c12; }
-            QPushButton#testLegendaryBtn:pressed { background-color: #d68910; }
+            QPushButton#testLegendaryBtn {{ background-color: #f1c40f; color: #2c3e50; }}
+            QPushButton#testLegendaryBtn:hover {{ background-color: #f39c12; }}
+            QPushButton#testLegendaryBtn:pressed {{ background-color: #d68910; }}
 
-            QPushButton#customTestBtn { background-color: #3498db; }
-            QPushButton#customTestBtn:hover { background-color: #2980b9; }
-            QPushButton#customTestBtn:pressed { background-color: #21618c; }
+            QPushButton#customTestBtn {{ background-color: #3498db; }}
+            QPushButton#customTestBtn:hover {{ background-color: #2980b9; }}
+            QPushButton#customTestBtn:pressed {{ background-color: #21618c; }}
 
-            QPushButton#rushHourBtn { background-color: #e91e63; }
-            QPushButton#rushHourBtn:hover { background-color: #c2185b; }
-            QPushButton#rushHourBtn:pressed { background-color: #880e4f; }
+            QPushButton#rushHourBtn {{ background-color: #e91e63; }}
+            QPushButton#rushHourBtn:hover {{ background-color: #c2185b; }}
+            QPushButton#rushHourBtn:pressed {{ background-color: #880e4f; }}
 
-            QPushButton#lootDriveBtn { background-color: #9c27b0; }
-            QPushButton#lootDriveBtn:hover { background-color: #7b1fa2; }
-            QPushButton#lootDriveBtn:pressed { background-color: #4a148c; }
+            QPushButton#lootDriveBtn {{ background-color: #9c27b0; }}
+            QPushButton#lootDriveBtn:hover {{ background-color: #7b1fa2; }}
+            QPushButton#lootDriveBtn:pressed {{ background-color: #4a148c; }}
 
-            QPushButton#bountyHunterBtn { background-color: #607d8b; }
-            QPushButton#bountyHunterBtn:hover { background-color: #455a64; }
-            QPushButton#bountyHunterBtn:pressed { background-color: #263238; }
+            QPushButton#bountyHunterBtn {{ background-color: #607d8b; }}
+            QPushButton#bountyHunterBtn:hover {{ background-color: #455a64; }}
+            QPushButton#bountyHunterBtn:pressed {{ background-color: #263238; }}
 
-            QPushButton#contestBtn { background-color: #ff5722; }
-            QPushButton#contestBtn:hover { background-color: #e64a19; }
-            QPushButton#contestBtn:pressed { background-color: #bf360c; }
+            QPushButton#contestBtn {{ background-color: #ff5722; }}
+            QPushButton#contestBtn:hover {{ background-color: #e64a19; }}
+            QPushButton#contestBtn:pressed {{ background-color: #bf360c; }}
 
-            QPushButton#backupBtn { background-color: #2196f3; }
-            QPushButton#backupBtn:hover { background-color: #1976d2; }
-            QPushButton#backupBtn:pressed { background-color: #0d47a1; }
+            QPushButton#backupBtn {{ background-color: #2196f3; }}
+            QPushButton#backupBtn:hover {{ background-color: #1976d2; }}
+            QPushButton#backupBtn:pressed {{ background-color: #0d47a1; }}
 
-            QPushButton#restoreBtn { background-color: #ff9800; }
-            QPushButton#restoreBtn:hover { background-color: #f57c00; }
-            QPushButton#restoreBtn:pressed { background-color: #e65100; }
+            QPushButton#restoreBtn {{ background-color: #ff9800; }}
+            QPushButton#restoreBtn:hover {{ background-color: #f57c00; }}
+            QPushButton#restoreBtn:pressed {{ background-color: #e65100; }}
 
-            QPushButton#saveBtn { background-color: #4caf50; }
-            QPushButton#saveBtn:hover { background-color: #388e3c; }
-            QPushButton#saveBtn:pressed { background-color: #1b5e20; }
+            QPushButton#saveBtn {{ background-color: #4caf50; }}
+            QPushButton#saveBtn:hover {{ background-color: #388e3c; }}
+            QPushButton#saveBtn:pressed {{ background-color: #1b5e20; }}
             
-            QPushButton#helpBtn { background-color: #00bcd4; }
-            QPushButton#helpBtn:hover { background-color: #0097a7; }
-            QPushButton#helpBtn:pressed { background-color: #006064; }
+            QPushButton#helpBtn {{ background-color: #00bcd4; }}
+            QPushButton#helpBtn:hover {{ background-color: #0097a7; }}
+            QPushButton#helpBtn:pressed {{ background-color: #006064; }}
 
-            QPushButton#delBtn { background-color: #d32f2f; }
-            QPushButton#delBtn:hover { background-color: #b71c1c; }
-            QPushButton#delBtn:pressed { background-color: #c62828; }
+            QPushButton#delBtn {{ background-color: #d32f2f; }}
+            QPushButton#delBtn:hover {{ background-color: #b71c1c; }}
+            QPushButton#delBtn:pressed {{ background-color: #c62828; }}
         """
 
     def get_light_stylesheet(self):
-        return """
-            QMainWindow {
+        font_size = self.config.get('font_size', 10)
+        return f"""
+            QMainWindow {{
                 background-color: #f0f0f0;
-            }
-            QWidget {
+            }}
+            QWidget {{
                 background-color: #f0f0f0;
                 color: #333333;
                 font-family: 'Segoe UI', sans-serif;
-                font-size: 10pt;
-            }
-            QGroupBox {
+                font-size: {font_size}pt;
+            }}
+            QGroupBox {{
                 background-color: #ffffff;
                 border: 1px solid #ccc;
                 border-radius: 8px;
@@ -1358,19 +1371,19 @@ class ChatCollectGUI(QMainWindow):
                 padding-top: 0px;
                 font-weight: bold;
                 color: #333333;
-            }
-            QGroupBox::title {
+            }}
+            QGroupBox::title {{
                 subcontrol-origin: margin;
                 subcontrol-position: top left;
                 left: 15px;
                 padding: 0 5px;
                 background-color: #ffffff; 
-            }
-            QLabel {
+            }}
+            QLabel {{
                 color: #333333;
                 background-color: transparent;
-            }
-            QLineEdit {
+            }}
+            QLineEdit {{
                 background-color: #ffffff;
                 border: 1px solid #ccc;
                 border-radius: 6px;
@@ -1378,12 +1391,12 @@ class ChatCollectGUI(QMainWindow):
                 color: #333333;
                 selection-background-color: #007acc;
                 qproperty-alignment: 'AlignCenter';
-            }
-            QLineEdit:focus {
+            }}
+            QLineEdit:focus {{
                 border: 1px solid #007acc;
                 background-color: #ffffff;
-            }
-            QPushButton {
+            }}
+            QPushButton {{
                 background-color: #007acc;
                 border: none;
                 border-radius: 6px;
@@ -1392,35 +1405,35 @@ class ChatCollectGUI(QMainWindow):
                 font-weight: bold;
                 text-transform: uppercase;
                 letter-spacing: 0.5px;
-            }
-            QPushButton:hover {
+            }}
+            QPushButton:hover {{
                 background-color: #0062a3;
                 margin-top: 2px;
                 border-bottom: 2px solid #004080;
-            }
-            QPushButton:pressed {
+            }}
+            QPushButton:pressed {{
                 background-color: #005a9e;
                 margin-top: 4px;
                 border-bottom: none;
-            }
-            QPushButton:disabled {
+            }}
+            QPushButton:disabled {{
                 background-color: #e0e0e0;
                 color: #a0a0a0;
                 border: none;
-            }
-            QTextEdit {
+            }}
+            QTextEdit {{
                 background-color: #ffffff;
                 border: 1px solid #ccc;
                 border-radius: 6px;
                 color: #333333;
                 selection-background-color: #007acc;
-            }
-            QTabWidget::pane {
+            }}
+            QTabWidget::pane {{
                 border: 1px solid #ccc;
                 background: #ffffff;
                 border-radius: 6px;
-            }
-            QTabBar::tab {
+            }}
+            QTabBar::tab {{
                 background: #e0e0e0;
                 color: #333333;
                 padding: 10px 25px;
@@ -1430,22 +1443,22 @@ class ChatCollectGUI(QMainWindow):
                 border-top-right-radius: 6px;
                 min-width: 100px;
                 margin-right: 2px;
-            }
-            QTabBar::tab:selected {
+            }}
+            QTabBar::tab:selected {{
                 background: #ffffff;
                 border-bottom: 2px solid #007acc;
                 font-weight: bold;
                 color: #333333;
-            }
-            QComboBox {
+            }}
+            QComboBox {{
                 background-color: #ffffff;
                 border: 1px solid #ccc;
                 border-radius: 6px;
                 padding: 5px 10px;
                 color: #333333;
                 min-width: 6em;
-            }
-            QComboBox::drop-down {
+            }}
+            QComboBox::drop-down {{
                 subcontrol-origin: padding;
                 subcontrol-position: top right;
                 width: 25px;
@@ -1455,78 +1468,78 @@ class ChatCollectGUI(QMainWindow):
                 border-top-right-radius: 6px;
                 border-bottom-right-radius: 6px;
                 background-color: #e0e0e0;
-            }
-            QComboBox::down-arrow {
+            }}
+            QComboBox::down-arrow {{
                 width: 0px;
                 height: 0px;
                 border-left: 5px solid transparent;
                 border-right: 5px solid transparent;
                 border-top: 6px solid #333333;
                 margin-right: 2px;
-            }
-            QComboBox QAbstractItemView {
+            }}
+            QComboBox QAbstractItemView {{
                 background-color: #ffffff;
                 border: 1px solid #ccc;
                 selection-background-color: #007acc;
                 outline: none;
                 color: #333333;
-            }
+            }}
             /* Keep colored buttons as they are, they work on light theme too */
-            QPushButton#startBtn { background-color: #2ecc71; }
-            QPushButton#startBtn:hover { background-color: #27ae60; }
-            QPushButton#startBtn:pressed { background-color: #1e8449; }
+            QPushButton#startBtn {{ background-color: #2ecc71; }}
+            QPushButton#startBtn:hover {{ background-color: #27ae60; }}
+            QPushButton#startBtn:pressed {{ background-color: #1e8449; }}
 
-            QPushButton#stopBtn { background-color: #e74c3c; }
-            QPushButton#stopBtn:hover { background-color: #c0392b; }
-            QPushButton#stopBtn:pressed { background-color: #922b21; }
+            QPushButton#stopBtn {{ background-color: #e74c3c; }}
+            QPushButton#stopBtn:hover {{ background-color: #c0392b; }}
+            QPushButton#stopBtn:pressed {{ background-color: #922b21; }}
 
-            QPushButton#testExplosionBtn { background-color: #e67e22; }
-            QPushButton#testExplosionBtn:hover { background-color: #d35400; }
-            QPushButton#testExplosionBtn:pressed { background-color: #a04000; }
+            QPushButton#testExplosionBtn {{ background-color: #e67e22; }}
+            QPushButton#testExplosionBtn:hover {{ background-color: #d35400; }}
+            QPushButton#testExplosionBtn:pressed {{ background-color: #a04000; }}
 
-            QPushButton#testLegendaryBtn { background-color: #f1c40f; color: #2c3e50; }
-            QPushButton#testLegendaryBtn:hover { background-color: #f39c12; }
-            QPushButton#testLegendaryBtn:pressed { background-color: #d68910; }
+            QPushButton#testLegendaryBtn {{ background-color: #f1c40f; color: #2c3e50; }}
+            QPushButton#testLegendaryBtn:hover {{ background-color: #f39c12; }}
+            QPushButton#testLegendaryBtn:pressed {{ background-color: #d68910; }}
 
-            QPushButton#customTestBtn { background-color: #3498db; }
-            QPushButton#customTestBtn:hover { background-color: #2980b9; }
-            QPushButton#customTestBtn:pressed { background-color: #21618c; }
+            QPushButton#customTestBtn {{ background-color: #3498db; }}
+            QPushButton#customTestBtn:hover {{ background-color: #2980b9; }}
+            QPushButton#customTestBtn:pressed {{ background-color: #21618c; }}
 
-            QPushButton#rushHourBtn { background-color: #e91e63; }
-            QPushButton#rushHourBtn:hover { background-color: #c2185b; }
-            QPushButton#rushHourBtn:pressed { background-color: #880e4f; }
+            QPushButton#rushHourBtn {{ background-color: #e91e63; }}
+            QPushButton#rushHourBtn:hover {{ background-color: #c2185b; }}
+            QPushButton#rushHourBtn:pressed {{ background-color: #880e4f; }}
 
-            QPushButton#lootDriveBtn { background-color: #9c27b0; }
-            QPushButton#lootDriveBtn:hover { background-color: #7b1fa2; }
-            QPushButton#lootDriveBtn:pressed { background-color: #4a148c; }
+            QPushButton#lootDriveBtn {{ background-color: #9c27b0; }}
+            QPushButton#lootDriveBtn:hover {{ background-color: #7b1fa2; }}
+            QPushButton#lootDriveBtn:pressed {{ background-color: #4a148c; }}
 
-            QPushButton#bountyHunterBtn { background-color: #607d8b; }
-            QPushButton#bountyHunterBtn:hover { background-color: #455a64; }
-            QPushButton#bountyHunterBtn:pressed { background-color: #263238; }
+            QPushButton#bountyHunterBtn {{ background-color: #607d8b; }}
+            QPushButton#bountyHunterBtn:hover {{ background-color: #455a64; }}
+            QPushButton#bountyHunterBtn:pressed {{ background-color: #263238; }}
 
-            QPushButton#contestBtn { background-color: #ff5722; }
-            QPushButton#contestBtn:hover { background-color: #e64a19; }
-            QPushButton#contestBtn:pressed { background-color: #bf360c; }
+            QPushButton#contestBtn {{ background-color: #ff5722; }}
+            QPushButton#contestBtn:hover {{ background-color: #e64a19; }}
+            QPushButton#contestBtn:pressed {{ background-color: #bf360c; }}
 
-            QPushButton#backupBtn { background-color: #2196f3; }
-            QPushButton#backupBtn:hover { background-color: #1976d2; }
-            QPushButton#backupBtn:pressed { background-color: #0d47a1; }
+            QPushButton#backupBtn {{ background-color: #2196f3; }}
+            QPushButton#backupBtn:hover {{ background-color: #1976d2; }}
+            QPushButton#backupBtn:pressed {{ background-color: #0d47a1; }}
 
-            QPushButton#restoreBtn { background-color: #ff9800; }
-            QPushButton#restoreBtn:hover { background-color: #f57c00; }
-            QPushButton#restoreBtn:pressed { background-color: #e65100; }
+            QPushButton#restoreBtn {{ background-color: #ff9800; }}
+            QPushButton#restoreBtn:hover {{ background-color: #f57c00; }}
+            QPushButton#restoreBtn:pressed {{ background-color: #e65100; }}
 
-            QPushButton#saveBtn { background-color: #4caf50; }
-            QPushButton#saveBtn:hover { background-color: #388e3c; }
-            QPushButton#saveBtn:pressed { background-color: #1b5e20; }
+            QPushButton#saveBtn {{ background-color: #4caf50; }}
+            QPushButton#saveBtn:hover {{ background-color: #388e3c; }}
+            QPushButton#saveBtn:pressed {{ background-color: #1b5e20; }}
             
-            QPushButton#helpBtn { background-color: #00bcd4; }
-            QPushButton#helpBtn:hover { background-color: #0097a7; }
-            QPushButton#helpBtn:pressed { background-color: #006064; }
+            QPushButton#helpBtn {{ background-color: #00bcd4; }}
+            QPushButton#helpBtn:hover {{ background-color: #0097a7; }}
+            QPushButton#helpBtn:pressed {{ background-color: #006064; }}
 
-            QPushButton#delBtn { background-color: #d32f2f; }
-            QPushButton#delBtn:hover { background-color: #b71c1c; }
-            QPushButton#delBtn:pressed { background-color: #c62828; }
+            QPushButton#delBtn {{ background-color: #d32f2f; }}
+            QPushButton#delBtn:hover {{ background-color: #b71c1c; }}
+            QPushButton#delBtn:pressed {{ background-color: #c62828; }}
         """
 
     def init_ui(self):
@@ -1979,6 +1992,22 @@ class ChatCollectGUI(QMainWindow):
         grid_layout.addWidget(self.legendary_chance_spin, 2, 1)
         
         balance_layout.addLayout(grid_layout)
+        
+        # Points Configuration
+        points_group = QGroupBox("Point Values")
+        points_layout = QFormLayout()
+        
+        self.add_config_input(points_layout, "points", "standard_min", "Standard Min:")
+        self.add_config_input(points_layout, "points", "standard_max", "Standard Max:")
+        self.add_config_input(points_layout, "points", "shiny", "Shiny Points:")
+        self.add_config_input(points_layout, "points", "golden", "Golden Points:")
+        self.add_config_input(points_layout, "points", "legendary", "Legendary Min:")
+        self.add_config_input(points_layout, "points", "ruined", "Ruined Points:")
+        self.add_config_input(points_layout, "points", "bounty_hunter", "Bounty Hunter Bonus:")
+        
+        points_group.setLayout(points_layout)
+        balance_layout.addWidget(points_group)
+        
         balance_layout.addStretch()
         
         balance_tab.setLayout(balance_layout)
@@ -2183,6 +2212,14 @@ class ChatCollectGUI(QMainWindow):
         QApplication.setFont(font)
         self.config['font_family'] = font.family()
         self.config['font_size'] = size
+        
+        # Re-apply stylesheet to update font size
+        current_theme = self.theme_combo.currentText()
+        if current_theme == "Light Mode":
+            self.setStyleSheet(self.get_light_stylesheet()) 
+        elif current_theme == "Dark Mode":
+            self.setStyleSheet(self.get_dark_stylesheet())
+            
         self.save_configuration()
 
     def check_for_updates(self):
@@ -2355,12 +2392,12 @@ class ChatCollectGUI(QMainWindow):
                     # Merge with default to ensure all keys exist
                     config = DEFAULT_CONFIG.copy()
                     # Deep merge for nested dicts
-                    for key in ["commands", "messages", "events"]:
+                    for key in ["commands", "messages", "events", "points"]:
                         if key in loaded:
                             config[key].update(loaded[key])
                     # Merge top level keys (token, channel)
                     for key in loaded:
-                        if key not in ["commands", "messages", "events"]:
+                        if key not in ["commands", "messages", "events", "points"]:
                             config[key] = loaded[key]
                     return config
             except Exception as e:
@@ -2380,11 +2417,11 @@ class ChatCollectGUI(QMainWindow):
             # Update self.config
             self.config = DEFAULT_CONFIG.copy()
             # Deep merge logic
-            for key in ["commands", "messages", "events"]:
+            for key in ["commands", "messages", "events", "points"]:
                 if key in new_config:
                     self.config[key].update(new_config[key])
             for key in new_config:
-                if key not in ["commands", "messages", "events"]:
+                if key not in ["commands", "messages", "events", "points"]:
                     self.config[key] = new_config[key]
             
             # Refresh UI
