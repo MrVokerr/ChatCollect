@@ -64,7 +64,8 @@ DEFAULT_CONFIG = {
         "rush_hour_start": "🚀 RUSH HOUR STARTED! 2x Points for 60 seconds!",
         "loot_drive_start": "🎒 LOOT DRIVE STARTED! Community Goal: {target} Items!",
         "bounty_hunter_spawn": "🧐 BOUNTY HUNTER ARRIVED! He wants a {item}!",
-        "bounty_hunter_satisfied": "🧐 {username} satisfied the Bounty Hunter! (+{points} pts)"
+        "bounty_hunter_satisfied": "🧐 {username} satisfied the Bounty Hunter! (+{points} pts)",
+        "use_no_loot": "@{username}, you need to loot something first!"
     },
     "events": {
         "rush_hour_name": "Rush Hour",
@@ -1027,7 +1028,9 @@ class ChatCollectBot(commands.Bot):
             return
 
         if username not in player_data:
-            await ctx.send(f"@{username}, you need to loot something first!")
+            msgs = self.config.get("messages", DEFAULT_CONFIG["messages"])
+            msg = msgs.get("use_no_loot", DEFAULT_CONFIG["messages"]["use_no_loot"])
+            await ctx.send(msg.format(username=username))
             return
 
         now = time.time()
@@ -2380,6 +2383,7 @@ class ChatCollectGUI(QMainWindow):
         self.add_config_input(scroll_layout, "messages", "loot_drive_start", "Loot Drive Start:")
         self.add_config_input(scroll_layout, "messages", "bounty_hunter_spawn", "Bounty Hunter Spawn:")
         self.add_config_input(scroll_layout, "messages", "bounty_hunter_satisfied", "Bounty Hunter Satisfied:")
+        self.add_config_input(scroll_layout, "messages", "use_no_loot", "Use (No Loot) Message:")
         
         scroll.setWidget(scroll_content)
         msg_layout.addWidget(scroll)
