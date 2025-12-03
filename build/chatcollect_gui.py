@@ -9,6 +9,7 @@ import shutil
 import ctypes
 import urllib.request
 import subprocess
+import base64
 from ctypes import windll, byref, c_int
 from datetime import datetime
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
@@ -21,7 +22,7 @@ import websockets
 from twitchio.ext import commands
 
 # ============ VERSION & UPDATE CONFIG ============
-CURRENT_VERSION = "1.0.7"
+CURRENT_VERSION = "1.0.8"
 # REPLACE THESE WITH YOUR ACTUAL GITHUB URLs
 UPDATE_VERSION_URL = "https://raw.githubusercontent.com/MrVokerr/ChatCollect/main/version.txt"
 UPDATE_EXE_URL = "https://github.com/MrVokerr/ChatCollect/releases/latest/download/ChatCollect.exe"
@@ -93,6 +94,486 @@ DEFAULT_CONFIG = {
         {"score": 100000, "title": "God of Loot"}
     ]
 }
+
+OVERLAY_HTML_CONTENT = r"""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=1920, height=1080">
+    <title>ChatCollect Overlay</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            width: 1920px;
+            height: 1080px;
+            overflow: hidden;
+            background: transparent;
+            font-family: 'Arial', sans-serif;
+            position: relative;
+        }
+
+        /* Loot Animation Container */
+        #loot-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .loot-item {
+            position: absolute;
+            width: 64px;
+            height: 64px;
+            animation: loot-float 4s linear forwards;
+            filter: drop-shadow(2px 2px 4px rgba(0,0,0,0.5));
+        }
+
+        .loot-item.legendary {
+            width: 96px;
+            height: 96px;
+            filter: drop-shadow(0 0 15px gold) drop-shadow(0 0 30px orange);
+        }
+
+        .loot-item.ruined {
+            filter: grayscale(100%) brightness(30%) sepia(100%) hue-rotate(-50deg) saturate(600%) contrast(0.8);
+        }
+
+        .loot-item.golden {
+            filter: drop-shadow(0 0 10px gold) brightness(1.2);
+        }
+
+        .loot-item.shiny {
+            width: 250px;
+            height: 250px;
+            z-index: 999;
+            animation: loot-shoot-shiny 4s ease-out forwards, shiny-pulse 0.2s infinite alternate;
+        }
+
+        @keyframes loot-shoot-shiny {
+            0% {
+                transform: translateY(0) scale(0.5) rotate(0deg);
+                opacity: 1;
+            }
+            10% {
+                transform: translateY(-400px) scale(1.0) rotate(0deg);
+            }
+            80% {
+                transform: translateY(-500px) scale(1.2) rotate(10deg);
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(-800px) scale(1.5) rotate(-10deg);
+                opacity: 0;
+            }
+        }
+
+        @keyframes shiny-pulse {
+            from { filter: hue-rotate(0deg) drop-shadow(0 0 5px cyan); }
+            to { filter: hue-rotate(90deg) drop-shadow(0 0 15px magenta); }
+        }
+
+        .explosion-item {
+            position: absolute;
+            width: 48px;
+            height: 48px;
+            animation: explosion-burst 2s ease-out forwards;
+            filter: drop-shadow(2px 2px 4px rgba(0,0,0,0.5));
+        }
+
+        @keyframes explosion-burst {
+            0% {
+                transform: translate(0, 0) scale(0.5) rotate(0deg);
+                opacity: 1;
+            }
+            100% {
+                transform: translate(var(--tx), var(--ty)) scale(1) rotate(720deg);
+                opacity: 0;
+            }
+        }
+
+        @keyframes loot-float {
+            0% {
+                transform: translateY(0) scale(0.5) rotate(0deg);
+                opacity: 1;
+            }
+            12.5% {
+                transform: translateY(-116px) scale(0.833) rotate(120deg);
+                opacity: 1;
+            }
+            25% {
+                transform: translateY(-233px) scale(1.166) rotate(240deg);
+                opacity: 1;
+            }
+            37.5% {
+                transform: translateY(-350px) scale(1.5) rotate(360deg);
+                opacity: 1;
+            }
+            75% {
+                transform: translateY(-350px) scale(1.5) rotate(360deg);
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(-350px) scale(1.5) rotate(360deg);
+                opacity: 0;
+            }
+        }
+
+        /* Notification Banner */
+        #notification {
+            position: absolute;
+            top: -100px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px 40px;
+            border-radius: 15px;
+            font-size: 24px;
+            font-weight: bold;
+            text-align: center;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.6);
+            transition: top 0.5s ease;
+            z-index: 1000;
+        }
+
+        #notification.show {
+            top: 50px;
+        }
+
+        /* Leaderboard */
+        .leaderboard {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 300px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid #FFD700;
+            border-radius: 10px;
+            padding: 10px;
+            color: white;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);
+            transition: opacity 0.5s ease;
+            opacity: 1;
+            z-index: 1000;
+        }
+
+        .leaderboard.hidden {
+            opacity: 0;
+        }
+
+        .leaderboard-header {
+            text-align: center;
+            font-size: 1.2em;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #FFD700;
+            border-bottom: 1px solid #555;
+            padding-bottom: 5px;
+        }
+
+        .leaderboard-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 0;
+            border-bottom: 1px solid #333;
+            font-size: 0.9em;
+        }
+
+        .leaderboard-item:last-child {
+            border-bottom: none;
+        }
+
+        .rank {
+            width: 30px;
+            font-weight: bold;
+            color: #aaa;
+            text-align: center;
+        }
+        
+        .rank-1 { color: #FFD700; font-size: 1.1em; }
+        .rank-2 { color: #C0C0C0; font-size: 1.1em; }
+        .rank-3 { color: #CD7F32; font-size: 1.1em; }
+
+        .user-info {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            padding-left: 10px;
+        }
+
+        .username {
+            font-weight: bold;
+            color: #fff;
+        }
+
+        .stats {
+            font-size: 0.8em;
+            color: #ccc;
+        }
+
+        .shiny-icon {
+            color: cyan;
+        }
+    </style>
+</head>
+<body>
+    <div id="loot-container"></div>
+
+    <div id="notification"></div>
+
+    <!-- Leaderboard Container -->
+    <div id="leaderboard" class="leaderboard hidden">
+        <div class="leaderboard-header">🏆 Top Collectors</div>
+        <div id="leaderboard-list"></div>
+    </div>
+
+    <script>
+        const ws = new WebSocket("ws://localhost:8765");
+        const lootContainer = document.getElementById("loot-container");
+        const notification = document.getElementById("notification");
+        const leaderboard = document.getElementById("leaderboard");
+        const leaderboardList = document.getElementById("leaderboard-list");
+
+        ws.onopen = () => {
+            console.log("✅ Connected to overlay server");
+            // Show visual confirmation
+            document.body.style.border = "5px solid lime";
+            setTimeout(() => { document.body.style.border = "none"; }, 2000);
+        };
+
+        ws.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            console.log("📩 Received:", data);
+
+            if (data.event === "loot") {
+                animateLoot(data);
+                if (data.show_banner) {
+                    showNotification(data);
+                }
+            } else if (data.event === "leaderboard_update") {
+                updateLeaderboard(data);
+            }
+        };
+
+        ws.onerror = (error) => {
+            console.error("❌ WebSocket error:", error);
+        };
+
+        ws.onclose = () => {
+            console.log("🔌 Disconnected from overlay server");
+        };
+
+        function updateLeaderboard(data) {
+            if (data.show) {
+                leaderboard.classList.remove("hidden");
+            } else {
+                leaderboard.classList.add("hidden");
+                return;
+            }
+
+            leaderboardList.innerHTML = "";
+            data.data.forEach(player => {
+                const item = document.createElement("div");
+                item.className = "leaderboard-item";
+                
+                const rankClass = player.rank <= 3 ? `rank-${player.rank}` : "";
+                
+                item.innerHTML = `
+                    <div class="rank ${rankClass}">#${player.rank}</div>
+                    <div class="user-info">
+                        <span class="username">${player.username}</span>
+                        <span class="stats">Score: ${player.score} | <span class="shiny-icon">💎</span> ${player.shinies}</span>
+                    </div>
+                `;
+                leaderboardList.appendChild(item);
+            });
+        }
+
+        function animateLoot(data) {
+            console.log("🎨 Animating loot:", data.item);
+            const item = document.createElement("img");
+            item.src = data.item;
+            
+            let className = "loot-item";
+            if (data.is_legendary) className += " legendary";
+            if (data.rarity) className += " " + data.rarity;
+            
+            item.className = className;
+            
+            // Error handling for image loading
+            item.onerror = () => {
+                console.error("❌ Failed to load image:", data.item);
+            };
+            item.onload = () => {
+                console.log("✅ Image loaded successfully:", data.item);
+            };
+            
+            // Random horizontal position
+            let randomX = Math.random() * (window.innerWidth - 100) + 50;
+            
+            // If shiny, force middle
+            if (data.rarity === 'shiny') {
+                randomX = (window.innerWidth / 2) - 125; // Center (half of 250px width)
+            }
+
+            item.style.left = randomX + "px";
+            item.style.bottom = "0px";
+            
+            lootContainer.appendChild(item);
+
+            // Trigger explosion if legendary or ranked up
+            if (data.trigger_explosion) {
+                setTimeout(() => {
+                    // Adjust explosion height for shiny
+                    const explosionY = (data.rarity === 'shiny') ? -500 : -350;
+                    triggerExplosion(randomX, explosionY);
+                }, 1500); // Explosion at peak
+            }
+
+            // Remove after animation (matches animation duration)
+            setTimeout(() => {
+                item.remove();
+            }, 4000);
+        }
+
+        function triggerExplosion(centerX, centerY) {
+            console.log("💥 Triggering loot explosion!");
+            const explosionCount = 12;
+            const allItems = Array.from(document.querySelectorAll('#loot-container img'))
+                .map(img => img.src.split('/').pop());
+            
+            // Use available items for explosion
+            const availableItems = allItems.length > 0 ? allItems : ['croissant.png', 'donut.png'];
+            
+            for (let i = 0; i < explosionCount; i++) {
+                const explosionItem = document.createElement("img");
+                explosionItem.src = availableItems[Math.floor(Math.random() * availableItems.length)];
+                explosionItem.className = "explosion-item";
+                
+                // Calculate random direction
+                const angle = (Math.PI * 2 * i) / explosionCount;
+                const distance = 200 + Math.random() * 100;
+                const tx = Math.cos(angle) * distance;
+                const ty = Math.sin(angle) * distance;
+                
+                explosionItem.style.left = centerX + "px";
+                explosionItem.style.bottom = Math.abs(centerY) + "px";
+                explosionItem.style.setProperty('--tx', tx + 'px');
+                explosionItem.style.setProperty('--ty', ty + 'px');
+                
+                lootContainer.appendChild(explosionItem);
+                
+                setTimeout(() => {
+                    explosionItem.remove();
+                }, 2000);
+            }
+        }
+
+        function showNotification(data) {
+            // Format the item name from filename (e.g., "croissant.png" -> "Croissant")
+            const itemName = data.item.replace('.png', '').replace(/-/g, ' ').replace(/_/g, ' ')
+                .split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+            
+            // Build notification text
+            let notifText = '';
+            
+            if (data.rarity === 'ruined') {
+                notifText = `🔥 ${data.user} ruined a ${itemName}!`;
+            } else if (data.rarity === 'shiny') {
+                notifText = `💎✨ ${data.user} found a SHINY ${itemName}!`;
+            } else if (data.rarity === 'golden') {
+                notifText = `🌟 ${data.user} found a GOLDEN ${itemName}!`;
+            } else if (data.is_legendary) {
+                notifText = `✨ ${data.user} found a LEGENDARY ${itemName}! ✨`;
+            } else if (data.ranked_up) {
+                notifText = `🎉 ${data.user} found a ${itemName} and ranked up to ${data.rank}! 🎉`;
+            } else {
+                notifText = `🍞 ${data.user} found a ${itemName}! (${data.rank})`;
+            }
+            
+            notification.textContent = notifText;
+            notification.classList.add("show");
+
+            setTimeout(() => {
+                notification.classList.remove("show");
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
+"""
+
+def ensure_initial_setup():
+    """Ensures that necessary directories and files exist on startup."""
+    # 1. Create backups folder
+    backups_dir = os.path.join(BASE_PATH, "backups")
+    if not os.path.exists(backups_dir):
+        try:
+            os.makedirs(backups_dir)
+            print(f"Created backups directory: {backups_dir}")
+        except Exception as e:
+            print(f"Failed to create backups directory: {e}")
+
+    # 2. Create overlay folder
+    overlay_dir = os.path.join(BASE_PATH, "overlay")
+    if not os.path.exists(overlay_dir):
+        try:
+            os.makedirs(overlay_dir)
+            print(f"Created overlay directory: {overlay_dir}")
+        except Exception as e:
+            print(f"Failed to create overlay directory: {e}")
+
+    # 3. Create legendary folder inside overlay
+    legendary_dir = os.path.join(overlay_dir, "legendary")
+    if not os.path.exists(legendary_dir):
+        try:
+            os.makedirs(legendary_dir)
+            print(f"Created legendary directory: {legendary_dir}")
+        except Exception as e:
+            print(f"Failed to create legendary directory: {e}")
+
+    # 4. Create overlay.html if missing
+    overlay_file = os.path.join(overlay_dir, "overlay.html")
+    if not os.path.exists(overlay_file):
+        try:
+            with open(overlay_file, "w", encoding="utf-8") as f:
+                f.write(OVERLAY_HTML_CONTENT)
+            print(f"Created overlay.html: {overlay_file}")
+        except Exception as e:
+            print(f"Failed to create overlay.html: {e}")
+
+    # 5. Create default images if missing (Initial Setup)
+    # Check for images in overlay
+    try:
+        overlay_images = [f for f in os.listdir(overlay_dir) if f.lower().endswith(('.png', '.jpg', '.jpeg', '.gif'))]
+        if not overlay_images:
+            # 1x1 Red Pixel
+            default_item_data = base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==")
+            with open(os.path.join(overlay_dir, "default_item.png"), "wb") as f:
+                f.write(default_item_data)
+            print("Created default_item.png")
+    except Exception as e:
+        print(f"Failed to check/create default item: {e}")
+
+    # Check for images in legendary
+    try:
+        legendary_images = [f for f in os.listdir(legendary_dir) if f.lower().endswith(('.png', '.jpg', '.jpeg', '.gif'))]
+        if not legendary_images:
+            # 1x1 Gold Pixel
+            default_legendary_data = base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==")
+            with open(os.path.join(legendary_dir, "default_legendary.png"), "wb") as f:
+                f.write(default_legendary_data)
+            print("Created default_legendary.png")
+    except Exception as e:
+        print(f"Failed to check/create default legendary item: {e}")
 
 # ============ OPTIMIZED MANAGERS ============
 class AssetManager:
@@ -2403,6 +2884,15 @@ class ChatCollectGUI(QMainWindow):
             except Exception as e:
                 print(f"Error loading config: {e}")
                 return DEFAULT_CONFIG.copy()
+        
+        # If no config exists, create one with defaults
+        print("⚠️ No config found. Creating default configuration.")
+        try:
+            with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
+                json.dump(DEFAULT_CONFIG, f, indent=4)
+        except Exception as e:
+            print(f"❌ Error creating default config: {e}")
+            
         return DEFAULT_CONFIG.copy()
 
     def load_config_from_file(self):
@@ -2822,6 +3312,7 @@ class ChatCollectGUI(QMainWindow):
             self.log(f"🛑 Stopped {evts['contest_name']}!")
 
 if __name__ == "__main__":
+    ensure_initial_setup()
     app = QApplication(sys.argv)
     window = ChatCollectGUI()
     window.show()

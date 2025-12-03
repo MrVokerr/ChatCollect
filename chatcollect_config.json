@@ -9,6 +9,9 @@
         "cooldown": "\u23f3 @{username}, resting...... wait {remaining}s.",
         "loot_success": "\ud83c\udf5e @{username} looted a {item}! (+{points} pts) ({rank}) | Score: {score}",
         "loot_legendary": "\u2728 @{username} looted a LEGENDARY {item}! \u2728 (+{points} pts) ({rank}) | Score: {score}",
+        "loot_ruined": "\ud83d\udd25 @{username} tried to loot a {item} but fell asleep! It's RUINED! (0 pts)",
+        "loot_shiny": "\ud83d\udc8e\u2728 SHINY!! @{username} looted a SHINY {item}! Unlocked a Badge! (+{points} pts)",
+        "loot_golden": "\ud83c\udf1f MASTERPIECE! @{username} looted a GOLDEN {item}! (+{points} pts)",
         "rank_up": "\ud83c\udf89 {username} ranked up to {rank}!",
         "contest_start": "\u2694\ufe0f CONTEST STARTED! Type {command} to enter! (Entry: 50 pts)",
         "contest_winner": "\ud83c\udfc6 {username} WON THE CONTEST! Prize: {prize} pts!",
@@ -22,6 +25,15 @@
         "loot_drive_name": "Loot Run",
         "bounty_hunter_name": "Bounty Hunter",
         "contest_name": "Contest"
+    },
+    "points": {
+        "shiny": "10",
+        "golden": "3",
+        "ruined": "0",
+        "legendary": "5",
+        "bounty_hunter": "50",
+        "standard_min": "1",
+        "standard_max": "1"
     },
     "ranks": [
         {
@@ -69,7 +81,7 @@
     "channel": "",
     "show_banner": true,
     "theme": "Dark Mode",
-    "font_family": "Segoe UI",
+    "font_family": "Segoe Print",
     "font_size": 14,
     "output_dir": "C:\\Users\\Voker\\OneDrive\\Desktop\\ChatCollect",
     "autosave_interval": 5,

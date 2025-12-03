@@ -1,0 +1,7 @@
+chatcollect_config.json
+chatcollect_data.txt
+backups/
+__pycache__/
+*.spec
+dist/
+*.log
