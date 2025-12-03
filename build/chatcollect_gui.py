@@ -1206,16 +1206,16 @@ class ChatCollectBot(commands.Bot):
         msg = ""
         if rarity == "ruined":
             base_msg = msgs.get("loot_ruined", DEFAULT_CONFIG["messages"]["loot_ruined"])
-            msg = base_msg.format(username=username, item=item_display_name)
+            msg = base_msg.format(username=username, item=item_display_name, points=points_gained, rank=new_rank_title, score=int(bake_score))
             self.log_callback(f"🔥 {username} ruined a {item_display_name}")
         elif rarity == "shiny":
             base_msg = msgs.get("loot_shiny", DEFAULT_CONFIG["messages"]["loot_shiny"])
-            msg = base_msg.format(username=username, item=item_display_name, points=points_gained)
+            msg = base_msg.format(username=username, item=item_display_name, points=points_gained, rank=new_rank_title, score=int(bake_score))
             msg += f"{critic_msg}{loot_drive_msg}"
             self.log_callback(f"💎 {username} got a SHINY {item_display_name}")
         elif rarity == "golden":
             base_msg = msgs.get("loot_golden", DEFAULT_CONFIG["messages"]["loot_golden"])
-            msg = base_msg.format(username=username, item=item_display_name, points=points_gained)
+            msg = base_msg.format(username=username, item=item_display_name, points=points_gained, rank=new_rank_title, score=int(bake_score))
             msg += f"{critic_msg}{loot_drive_msg}"
             self.log_callback(f"🌟 {username} got a GOLDEN {item_display_name}")
         else:
