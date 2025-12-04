@@ -22,7 +22,7 @@ import websockets
 from twitchio.ext import commands
 
 # ============ VERSION & UPDATE CONFIG ============
-CURRENT_VERSION = "v1.0.8"
+CURRENT_VERSION = "v1.1.0"
 UPDATE_VERSION_URL = "https://raw.githubusercontent.com/MrVokerr/ChatCollect/main/version.txt"
 UPDATE_EXE_URL = "https://github.com/MrVokerr/ChatCollect/releases/latest/download/ChatCollect.exe"
 REPO_RAW_URL = "https://raw.githubusercontent.com/MrVokerr/ChatCollect/main/"
@@ -81,6 +81,13 @@ DEFAULT_CONFIG = {
         "standard_min": 1,
         "standard_max": 1
     },
+    "use_cooldown": 300,
+    "luck_per_point": 5,
+    "golden_chance": 0.05,
+    "ruined_chance": 0.05,
+    "loot_drive_target": 150,
+    "contest_entry_cost": 10,
+    "rush_hour_cooldown_divider": 6,
     "ranks": [
         {"score": 0, "title": "Novice Collector"},
         {"score": 50, "title": "Rookie Scavenger"},
@@ -1044,9 +1051,10 @@ class ChatCollectBot(commands.Bot):
         now = time.time()
         last_eat = player_data[username].get('last_use_time', 0)
         
-        # 5 minute cooldown (300 seconds)
-        if now - last_eat < 300:
-            remaining = int(300 - (now - last_eat))
+        # Get cooldown from config (default 5 minutes)
+        use_cooldown = int(self.config.get('use_cooldown', 300))
+        if now - last_eat < use_cooldown:
+            remaining = int(use_cooldown - (now - last_eat))
             await ctx.send(f"⏳ @{username}, you're too full! Wait {remaining}s.")
             return
 
@@ -1058,9 +1066,10 @@ class ChatCollectBot(commands.Bot):
         # Consume points
         player_data[username]['loot_score'] -= amount
         
-        # Add luck (5% per point)
+        # Add luck (configurable % per point, default 5%)
+        luck_per_point = float(self.config.get('luck_per_point', 5.0))
         current_luck = player_data[username].get('luck', 0.0)
-        added_luck = amount * 5.0
+        added_luck = amount * luck_per_point
         new_luck = current_luck + added_luck
         player_data[username]['luck'] = new_luck
         player_data[username]['last_use_time'] = now
@@ -1103,7 +1112,8 @@ class ChatCollectBot(commands.Bot):
         
         # Check Rush Hour
         if self.rush_hour_active:
-            cooldown_time = max(1, cooldown_time // 6) # Reduced cooldown
+            rush_divider = int(self.config.get('rush_hour_cooldown_divider', 6))
+            cooldown_time = max(1, cooldown_time // rush_divider) # Reduced cooldown
         
         if now - last_bake_time < cooldown_time:
             remaining = int(cooldown_time - (now - last_bake_time))
@@ -1120,8 +1130,9 @@ class ChatCollectBot(commands.Bot):
         base_shiny_prob = 1.0 / max(1, shiny_chance_1_in_x)
         shiny_prob = base_shiny_prob + (luck / 1000.0)
         
-        golden_prob = 0.05 + (luck / 200.0)
-        ruined_prob = 0.05
+        base_golden_chance = float(self.config.get('golden_chance', 0.05))
+        golden_prob = base_golden_chance + (luck / 200.0)
+        ruined_prob = float(self.config.get('ruined_chance', 0.05))
         
         rand_val = random.random()
         
@@ -1325,7 +1336,7 @@ class ChatCollectBot(commands.Bot):
             return
 
         self.loot_drive_active = True
-        self.loot_drive_target = 150
+        self.loot_drive_target = int(self.config.get('loot_drive_target', 150))
         self.loot_drive_current = 0
         duration_seconds = duration_minutes * 60
         self.loot_drive_end_time = time.time() + duration_seconds
@@ -1334,7 +1345,7 @@ class ChatCollectBot(commands.Bot):
         evts = self.config.get("events", DEFAULT_CONFIG["events"])
         msgs = self.config.get("messages", DEFAULT_CONFIG["messages"])
         
-        self.log_callback(f"🎒 {evts['loot_drive_name']} started! Target: 150 Items ({duration_minutes} mins)")
+        self.log_callback(f"🎒 {evts['loot_drive_name']} started! Target: {self.loot_drive_target} Items ({duration_minutes} mins)")
         self._send_status_update()
         channel = self.get_channel(self.channel_name)
         if channel:
@@ -1403,13 +1414,14 @@ class ChatCollectBot(commands.Bot):
              await ctx.send(f"@{username}, you need to loot something first!")
              return
 
-        if player_data[username]['loot_score'] < 10:
-            await ctx.send(f"@{username}, you need 10 points to join!")
+        entry_cost = int(self.config.get('contest_entry_cost', 10))
+        if player_data[username]['loot_score'] < entry_cost:
+            await ctx.send(f"@{username}, you need {entry_cost} points to join!")
             return
             
-        player_data[username]['loot_score'] -= 10
+        player_data[username]['loot_score'] -= entry_cost
         self.contest_participants.append(username)
-        self.contest_pool += 10
+        self.contest_pool += entry_cost
         await db.save()
         await ctx.send(f"⚔️ @{username} joined the Contest! (Pool: {self.contest_pool})")
 
@@ -2498,6 +2510,85 @@ class ChatCollectGUI(QMainWindow):
         
         balance_layout.addLayout(grid_layout)
         
+        # Use Command Configuration
+        use_group = QGroupBox("!use Command Settings")
+        use_layout = QGridLayout()
+        
+        use_layout.addWidget(QLabel("Use Cooldown (seconds):"), 0, 0)
+        self.use_cooldown_spin = QSpinBox()
+        self.use_cooldown_spin.setRange(1, 3600)
+        self.use_cooldown_spin.setValue(int(self.config.get('use_cooldown', 300)))
+        self.use_cooldown_spin.valueChanged.connect(self.save_settings_change)
+        use_layout.addWidget(self.use_cooldown_spin, 0, 1)
+        
+        use_layout.addWidget(QLabel("Luck Per Point (%):"), 1, 0)
+        self.luck_per_point_spin = QSpinBox()
+        self.luck_per_point_spin.setRange(1, 100)
+        self.luck_per_point_spin.setValue(int(self.config.get('luck_per_point', 5)))
+        self.luck_per_point_spin.valueChanged.connect(self.save_settings_change)
+        use_layout.addWidget(self.luck_per_point_spin, 1, 1)
+        
+        use_layout.addWidget(QLabel("ℹ️ Players use points to gain luck for their next loot"), 0, 2, 2, 1)
+        
+        use_group.setLayout(use_layout)
+        balance_layout.addWidget(use_group)
+        
+        # Rarity Chances Configuration
+        rarity_group = QGroupBox("Rarity Probabilities")
+        rarity_layout = QGridLayout()
+        
+        rarity_layout.addWidget(QLabel("Golden Base Chance:"), 0, 0)
+        self.golden_chance_spin = QSpinBox()
+        self.golden_chance_spin.setRange(0, 100)
+        self.golden_chance_spin.setSuffix("%")
+        self.golden_chance_spin.setValue(int(self.config.get('golden_chance', 0.05) * 100))
+        self.golden_chance_spin.valueChanged.connect(self.save_settings_change)
+        rarity_layout.addWidget(self.golden_chance_spin, 0, 1)
+        
+        rarity_layout.addWidget(QLabel("Ruined Chance:"), 1, 0)
+        self.ruined_chance_spin = QSpinBox()
+        self.ruined_chance_spin.setRange(0, 100)
+        self.ruined_chance_spin.setSuffix("%")
+        self.ruined_chance_spin.setValue(int(self.config.get('ruined_chance', 0.05) * 100))
+        self.ruined_chance_spin.valueChanged.connect(self.save_settings_change)
+        rarity_layout.addWidget(self.ruined_chance_spin, 1, 1)
+        
+        rarity_layout.addWidget(QLabel("ℹ️ Luck increases golden/shiny chances"), 0, 2, 2, 1)
+        
+        rarity_group.setLayout(rarity_layout)
+        balance_layout.addWidget(rarity_group)
+        
+        # Event Configuration
+        event_group = QGroupBox("Event Settings")
+        event_layout = QGridLayout()
+        
+        event_layout.addWidget(QLabel("Loot Drive Target:"), 0, 0)
+        self.loot_drive_target_spin = QSpinBox()
+        self.loot_drive_target_spin.setRange(10, 10000)
+        self.loot_drive_target_spin.setValue(int(self.config.get('loot_drive_target', 150)))
+        self.loot_drive_target_spin.valueChanged.connect(self.save_settings_change)
+        event_layout.addWidget(self.loot_drive_target_spin, 0, 1)
+        event_layout.addWidget(QLabel("items"), 0, 2)
+        
+        event_layout.addWidget(QLabel("Contest Entry Cost:"), 1, 0)
+        self.contest_entry_spin = QSpinBox()
+        self.contest_entry_spin.setRange(1, 1000)
+        self.contest_entry_spin.setValue(int(self.config.get('contest_entry_cost', 10)))
+        self.contest_entry_spin.valueChanged.connect(self.save_settings_change)
+        event_layout.addWidget(self.contest_entry_spin, 1, 1)
+        event_layout.addWidget(QLabel("points"), 1, 2)
+        
+        event_layout.addWidget(QLabel("Rush Hour Cooldown Divider:"), 2, 0)
+        self.rush_hour_divider_spin = QSpinBox()
+        self.rush_hour_divider_spin.setRange(1, 20)
+        self.rush_hour_divider_spin.setValue(int(self.config.get('rush_hour_cooldown_divider', 6)))
+        self.rush_hour_divider_spin.valueChanged.connect(self.save_settings_change)
+        event_layout.addWidget(self.rush_hour_divider_spin, 2, 1)
+        event_layout.addWidget(QLabel("(cooldown ÷ this)"), 2, 2)
+        
+        event_group.setLayout(event_layout)
+        balance_layout.addWidget(event_group)
+        
         # Points Configuration
         points_group = QGroupBox("Point Values")
         points_layout = QFormLayout()
@@ -3004,6 +3095,13 @@ class ChatCollectGUI(QMainWindow):
         self.cooldown_spin.setValue(int(self.config.get('cooldown', 60)))
         self.shiny_chance_spin.setValue(int(self.config.get('shiny_chance', 10000)))
         self.legendary_chance_spin.setValue(int(self.config.get('legendary_chance', 1000)))
+        self.use_cooldown_spin.setValue(int(self.config.get('use_cooldown', 300)))
+        self.luck_per_point_spin.setValue(int(self.config.get('luck_per_point', 5)))
+        self.golden_chance_spin.setValue(int(self.config.get('golden_chance', 0.05) * 100))
+        self.ruined_chance_spin.setValue(int(self.config.get('ruined_chance', 0.05) * 100))
+        self.loot_drive_target_spin.setValue(int(self.config.get('loot_drive_target', 150)))
+        self.contest_entry_spin.setValue(int(self.config.get('contest_entry_cost', 10)))
+        self.rush_hour_divider_spin.setValue(int(self.config.get('rush_hour_cooldown_divider', 6)))
 
         # Tab 3: Settings
         self.theme_combo.setCurrentText(self.config.get('theme', 'Dark Mode'))
@@ -3049,8 +3147,13 @@ class ChatCollectGUI(QMainWindow):
         self.config['cooldown'] = self.cooldown_spin.value()
         self.config['shiny_chance'] = self.shiny_chance_spin.value()
         self.config['legendary_chance'] = self.legendary_chance_spin.value()
-        # self.config['loot_min'] = self.loot_min_spin.value()
-        # self.config['loot_max'] = self.loot_max_spin.value()
+        self.config['use_cooldown'] = self.use_cooldown_spin.value()
+        self.config['luck_per_point'] = self.luck_per_point_spin.value()
+        self.config['golden_chance'] = self.golden_chance_spin.value() / 100.0
+        self.config['ruined_chance'] = self.ruined_chance_spin.value() / 100.0
+        self.config['loot_drive_target'] = self.loot_drive_target_spin.value()
+        self.config['contest_entry_cost'] = self.contest_entry_spin.value()
+        self.config['rush_hour_cooldown_divider'] = self.rush_hour_divider_spin.value()
 
         # --- Save Setup Tab Inputs ---
         if hasattr(self, 'setup_inputs'):
