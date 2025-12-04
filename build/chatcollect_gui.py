@@ -22,7 +22,7 @@ import websockets
 from twitchio.ext import commands
 
 # ============ VERSION & UPDATE CONFIG ============
-CURRENT_VERSION = "v1.2.2"
+CURRENT_VERSION = "v1.2.3"
 UPDATE_VERSION_URL = "https://raw.githubusercontent.com/MrVokerr/ChatCollect/main/version.txt"
 UPDATE_EXE_URL = "https://github.com/MrVokerr/ChatCollect/releases/latest/download/ChatCollect.exe"
 REPO_RAW_URL = "https://raw.githubusercontent.com/MrVokerr/ChatCollect/main/"
@@ -2895,17 +2895,17 @@ class ChatCollectGUI(QMainWindow):
                     ))
                     self.log(f"✅ You're running the latest version ({CURRENT_VERSION})")
             except Exception as e:
-                QTimer.singleShot(0, lambda: QMessageBox.warning(
+                error_msg = str(e)
+                QTimer.singleShot(0, lambda msg=error_msg: QMessageBox.warning(
                     self, 
                     "Update Check Failed", 
-                    f"Could not check for updates:\n{e}"
+                    f"Could not check for updates:\n{msg}"
                 ))
                 self.log(f"❌ Update check failed: {e}")
             finally:
-                QTimer.singleShot(0, lambda: (
-                    self.update_btn.setEnabled(True),
-                    self.update_btn.setText("🔄 Check for Updates")
-                ))
+                # Always re-enable button
+                QTimer.singleShot(0, lambda: self.update_btn.setEnabled(True))
+                QTimer.singleShot(0, lambda: self.update_btn.setText("🔄 Check for Updates"))
         
         import threading
         threading.Thread(target=_check, daemon=True).start()
