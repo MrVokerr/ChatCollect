@@ -22,7 +22,7 @@ import websockets
 from twitchio.ext import commands
 
 # ============ VERSION & UPDATE CONFIG ============
-CURRENT_VERSION = "v1.2.4"
+CURRENT_VERSION = "v1.2.6"
 UPDATE_VERSION_URL = "https://raw.githubusercontent.com/MrVokerr/ChatCollect/main/version.txt"
 UPDATE_EXE_URL = "https://github.com/MrVokerr/ChatCollect/releases/latest/download/ChatCollect.exe"
 REPO_RAW_URL = "https://raw.githubusercontent.com/MrVokerr/ChatCollect/main/"
@@ -1709,7 +1709,7 @@ class ChatCollectGUI(QMainWindow):
                 background-color: #007acc;
                 border: none;
                 border-radius: 6px;
-                padding: 10px 20px;
+                padding: 6px 12px;
                 color: white;
                 font-weight: bold;
                 text-transform: uppercase;
@@ -1904,7 +1904,7 @@ class ChatCollectGUI(QMainWindow):
                 background-color: #007acc;
                 border: none;
                 border-radius: 6px;
-                padding: 10px 20px;
+                padding: 6px 12px;
                 color: white;
                 font-weight: bold;
                 text-transform: uppercase;
@@ -2902,36 +2902,50 @@ class ChatCollectGUI(QMainWindow):
         self.update_btn.setText("🔄 Checking...")
         
         def _check():
+            update_available = False
+            remote_ver = ""
+            error_occurred = False
+            error_message = ""
+            
             try:
-                with urllib.request.urlopen(UPDATE_VERSION_URL, timeout=5) as response:
-                    remote_version = response.read().decode('utf-8').strip()
+                with urllib.request.urlopen(UPDATE_VERSION_URL, timeout=10) as response:
+                    remote_ver = response.read().decode('utf-8').strip()
                 
                 # Normalize version strings for comparison
                 current_normalized = CURRENT_VERSION.lstrip('v')
-                remote_normalized = remote_version.lstrip('v')
+                remote_normalized = remote_ver.lstrip('v')
                 
                 if remote_normalized != current_normalized:
-                    QTimer.singleShot(0, lambda: self.prompt_update(remote_version))
-                    self.log(f"✨ Update available: {CURRENT_VERSION} → {remote_version}")
+                    update_available = True
+                    self.log(f"✨ Update available: {CURRENT_VERSION} → {remote_ver}")
                 else:
-                    QTimer.singleShot(0, lambda: QMessageBox.information(
+                    self.log(f"✅ You're running the latest version ({CURRENT_VERSION})")
+            except Exception as e:
+                error_occurred = True
+                error_message = str(e)
+                self.log(f"❌ Update check failed: {e}")
+            
+            # Schedule UI updates on main thread
+            def update_ui():
+                self.update_btn.setEnabled(True)
+                self.update_btn.setText("🔄 Check for Updates")
+                
+                if error_occurred:
+                    QMessageBox.warning(
+                        self, 
+                        "Update Check Failed", 
+                        f"Could not check for updates:\n{error_message}"
+                    )
+                elif update_available:
+                    self.prompt_update(remote_ver)
+                else:
+                    QMessageBox.information(
                         self, 
                         "Up to Date", 
                         f"You're already running the latest version ({CURRENT_VERSION})!"
-                    ))
-                    self.log(f"✅ You're running the latest version ({CURRENT_VERSION})")
-            except Exception as e:
-                error_msg = str(e)
-                QTimer.singleShot(0, lambda msg=error_msg: QMessageBox.warning(
-                    self, 
-                    "Update Check Failed", 
-                    f"Could not check for updates:\n{msg}"
-                ))
-                self.log(f"❌ Update check failed: {e}")
-            finally:
-                # Always re-enable button
-                QTimer.singleShot(0, lambda: self.update_btn.setEnabled(True))
-                QTimer.singleShot(0, lambda: self.update_btn.setText("🔄 Check for Updates"))
+                    )
+            
+            QTimer.singleShot(0, update_ui)
         
         import threading
         threading.Thread(target=_check, daemon=True).start()
