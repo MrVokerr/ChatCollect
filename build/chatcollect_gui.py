@@ -22,7 +22,7 @@ import websockets
 from twitchio.ext import commands
 
 # ============ VERSION & UPDATE CONFIG ============
-CURRENT_VERSION = "v1.2.3"
+CURRENT_VERSION = "v1.2.4"
 UPDATE_VERSION_URL = "https://raw.githubusercontent.com/MrVokerr/ChatCollect/main/version.txt"
 UPDATE_EXE_URL = "https://github.com/MrVokerr/ChatCollect/releases/latest/download/ChatCollect.exe"
 REPO_RAW_URL = "https://raw.githubusercontent.com/MrVokerr/ChatCollect/main/"
@@ -2099,7 +2099,15 @@ class ChatCollectGUI(QMainWindow):
         main_layout.addWidget(self.tabs)
         
         # --- Tab 1: Collection (Existing UI) ---
-        layout = QVBoxLayout(self.tab_collection)
+        scroll_collection = QScrollArea()
+        scroll_collection.setWidgetResizable(True)
+        scroll_collection.setFrameShape(QScrollArea.NoFrame)
+        scroll_collection_widget = QWidget()
+        layout = QVBoxLayout(scroll_collection_widget)
+        scroll_collection.setWidget(scroll_collection_widget)
+        main_collection_layout = QVBoxLayout(self.tab_collection)
+        main_collection_layout.setContentsMargins(0, 0, 0, 0)
+        main_collection_layout.addWidget(scroll_collection)
         
         # Configuration Group
         config_group = QGroupBox("Bot Configuration")
@@ -2347,11 +2355,13 @@ class ChatCollectGUI(QMainWindow):
         # Log Display
         log_group = QGroupBox("Activity Log")
         log_layout = QVBoxLayout()
+        log_layout.setContentsMargins(5, 5, 5, 5)
+        log_layout.setSpacing(0)
         
         self.log_display = QTextEdit()
         self.log_display.setReadOnly(True)
         self.log_display.setFont(QFont("Consolas", 8))
-        self.log_display.setMaximumHeight(200)
+        self.log_display.setFixedHeight(120)  # ~6 lines instead of 15
         log_layout.addWidget(self.log_display)
         
         log_group.setLayout(log_layout)
@@ -2370,7 +2380,15 @@ class ChatCollectGUI(QMainWindow):
         self.update_event_labels()
 
     def setup_setup_tab(self):
-        layout = QVBoxLayout(self.tab_setup)
+        scroll_setup = QScrollArea()
+        scroll_setup.setWidgetResizable(True)
+        scroll_setup.setFrameShape(QScrollArea.NoFrame)
+        scroll_setup_widget = QWidget()
+        layout = QVBoxLayout(scroll_setup_widget)
+        scroll_setup.setWidget(scroll_setup_widget)
+        main_setup_layout = QVBoxLayout(self.tab_setup)
+        main_setup_layout.setContentsMargins(0, 0, 0, 0)
+        main_setup_layout.addWidget(scroll_setup)
         
         # Nested Tabs
         self.setup_tabs = QTabWidget()
@@ -2655,7 +2673,15 @@ class ChatCollectGUI(QMainWindow):
             self.rank_inputs.remove((score_input, title_input))
 
     def setup_settings_tab(self):
-        layout = QVBoxLayout(self.tab_settings)
+        scroll_settings = QScrollArea()
+        scroll_settings.setWidgetResizable(True)
+        scroll_settings.setFrameShape(QScrollArea.NoFrame)
+        scroll_settings_widget = QWidget()
+        layout = QVBoxLayout(scroll_settings_widget)
+        scroll_settings.setWidget(scroll_settings_widget)
+        main_settings_layout = QVBoxLayout(self.tab_settings)
+        main_settings_layout.setContentsMargins(0, 0, 0, 0)
+        main_settings_layout.addWidget(scroll_settings)
         
         # Appearance Group
         appearance_group = QGroupBox("Appearance")
