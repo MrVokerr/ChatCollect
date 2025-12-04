@@ -22,7 +22,7 @@ import websockets
 from twitchio.ext import commands
 
 # ============ VERSION & UPDATE CONFIG ============
-CURRENT_VERSION = "v1.2.1"
+CURRENT_VERSION = "v1.2.2"
 UPDATE_VERSION_URL = "https://raw.githubusercontent.com/MrVokerr/ChatCollect/main/version.txt"
 UPDATE_EXE_URL = "https://github.com/MrVokerr/ChatCollect/releases/latest/download/ChatCollect.exe"
 REPO_RAW_URL = "https://raw.githubusercontent.com/MrVokerr/ChatCollect/main/"
@@ -2054,7 +2054,7 @@ class ChatCollectGUI(QMainWindow):
         if os.path.exists(icon_path):
             self.setWindowIcon(QIcon(icon_path))
 
-        self.setGeometry(100, 100, 700, 600)
+        self.setGeometry(100, 100, 750, 850)
         
         # Enable Dark Title Bar (Windows 10/11)
         try:
@@ -2350,7 +2350,8 @@ class ChatCollectGUI(QMainWindow):
         
         self.log_display = QTextEdit()
         self.log_display.setReadOnly(True)
-        self.log_display.setFont(QFont("Consolas", 9))
+        self.log_display.setFont(QFont("Consolas", 8))
+        self.log_display.setMaximumHeight(200)
         log_layout.addWidget(self.log_display)
         
         log_group.setLayout(log_layout)
@@ -2686,7 +2687,7 @@ class ChatCollectGUI(QMainWindow):
         appearance_layout.addWidget(QLabel("Font Size:"), 2, 0)
         self.font_size_spin = QSpinBox()
         self.font_size_spin.setRange(8, 24)
-        self.font_size_spin.setValue(self.config.get('font_size', 11))
+        self.font_size_spin.setValue(self.config.get('font_size', 10))
         self.font_size_spin.valueChanged.connect(self.apply_font)
         appearance_layout.addWidget(self.font_size_spin, 2, 1)
         
