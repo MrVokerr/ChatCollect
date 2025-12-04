@@ -23,7 +23,6 @@ from twitchio.ext import commands
 
 # ============ VERSION & UPDATE CONFIG ============
 CURRENT_VERSION = "v1.0.8"
-# REPLACE THESE WITH YOUR ACTUAL GITHUB URLs
 UPDATE_VERSION_URL = "https://raw.githubusercontent.com/MrVokerr/ChatCollect/main/version.txt"
 UPDATE_EXE_URL = "https://github.com/MrVokerr/ChatCollect/releases/latest/download/ChatCollect.exe"
 REPO_RAW_URL = "https://raw.githubusercontent.com/MrVokerr/ChatCollect/main/"
