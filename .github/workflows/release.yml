@@ -1,0 +1,52 @@
+name: Build and Release ChatCollect
+
+on:
+  push:
+    tags:
+      - 'v*'  # Triggers on version tags like v1.2.7
+
+jobs:
+  build-and-release:
+    runs-on: windows-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.14'
+    
+    - name: Install dependencies
+      run: |
+        cd build
+        pip install -r requirements.txt
+        pip install pyinstaller
+    
+    - name: Build ChatCollect.exe
+      run: |
+        cd build
+        pyinstaller --onefile --windowed --icon=exe_icon.ico --name=ChatCollect chatcollect_gui.py
+    
+    - name: Create Release
+      uses: softprops/action-gh-release@v2
+      with:
+        files: build/dist/ChatCollect.exe
+        body: |
+          ## What's New in ${{ github.ref_name }}
+          
+          Download `ChatCollect.exe` below and run it! 
+          
+          ### Installation
+          1. Download `ChatCollect.exe`
+          2. Run it - everything auto-creates!
+          3. Configure your Twitch OAuth token and channel
+          4. Click "Start Bot"
+          
+          ### Updating
+          - **Easy Way**: Click "Check for Updates" in Settings tab
+          - **Manual Way**: Replace your old exe with this one
+          
+          Your config and data are never touched by updates! ✅
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
