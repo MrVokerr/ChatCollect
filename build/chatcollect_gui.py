@@ -22,7 +22,7 @@ import websockets
 from twitchio.ext import commands
 
 # ============ VERSION & UPDATE CONFIG ============
-CURRENT_VERSION = "1.0.8"
+CURRENT_VERSION = "v1.0.8"
 # REPLACE THESE WITH YOUR ACTUAL GITHUB URLs
 UPDATE_VERSION_URL = "https://raw.githubusercontent.com/MrVokerr/ChatCollect/main/version.txt"
 UPDATE_EXE_URL = "https://github.com/MrVokerr/ChatCollect/releases/latest/download/ChatCollect.exe"
@@ -2036,7 +2036,7 @@ class ChatCollectGUI(QMainWindow):
         """
 
     def init_ui(self):
-        self.setWindowTitle(f"ChatCollect v{CURRENT_VERSION}")
+        self.setWindowTitle(f"ChatCollect {CURRENT_VERSION} - Twitch Loot Bot")
         
         # Set Window Icon
         icon_path = self.resource_path("exe_icon.ico")
@@ -2059,6 +2059,18 @@ class ChatCollectGUI(QMainWindow):
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
         main_layout = QVBoxLayout(central_widget)
+        
+        # Create Status Bar with version info
+        self.status_bar = self.statusBar()
+        self.status_bar.showMessage(f"ChatCollect {CURRENT_VERSION} | Ready")
+        self.status_bar.setStyleSheet("""
+            QStatusBar {
+                background-color: #1e1e1e;
+                color: #888;
+                border-top: 1px solid #333;
+            }
+            QStatusBar::item { border: none; }
+        """)
         
         # Check for updates
         QTimer.singleShot(2000, self.check_for_updates)
@@ -2723,9 +2735,16 @@ class ChatCollectGUI(QMainWindow):
                 with urllib.request.urlopen(UPDATE_VERSION_URL, timeout=5) as response:
                     remote_version = response.read().decode('utf-8').strip()
                 
-                if remote_version != CURRENT_VERSION:
+                # Normalize version strings for comparison (strip 'v' prefix if present)
+                current_normalized = CURRENT_VERSION.lstrip('v')
+                remote_normalized = remote_version.lstrip('v')
+                
+                if remote_normalized != current_normalized:
                     # Signal main thread to prompt
                     QTimer.singleShot(0, lambda: self.prompt_update(remote_version))
+                    self.log(f"✨ Update available: {CURRENT_VERSION} → {remote_version}")
+                else:
+                    self.log(f"✅ You're running the latest version ({CURRENT_VERSION})")
             except Exception as e:
                 print(f"Update check failed: {e}")
 
@@ -2733,14 +2752,25 @@ class ChatCollectGUI(QMainWindow):
         threading.Thread(target=_check, daemon=True).start()
 
     def prompt_update(self, remote_version):
-        reply = QMessageBox.question(self, "Update Available", 
-                                     f"A new version ({remote_version}) is available!\n\n"
-                                     "Do you want to update now?\n"
-                                     "(This will backup your settings, download the new version, and restart)",
-                                     QMessageBox.Yes | QMessageBox.No)
+        msg_box = QMessageBox(self)
+        msg_box.setWindowTitle("🎉 Update Available")
+        msg_box.setIcon(QMessageBox.Information)
+        msg_box.setText(f"<h3>New Version Available!</h3>")
+        msg_box.setInformativeText(
+            f"<p><b>Current Version:</b> {CURRENT_VERSION}<br>"
+            f"<b>New Version:</b> {remote_version}</p>"
+            f"<p>Would you like to download and install the update now?</p>"
+            f"<p style='color: #888; font-size: 9pt;'><i>Your settings will be automatically backed up.</i></p>"
+        )
+        msg_box.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        msg_box.setDefaultButton(QMessageBox.Yes)
+        
+        reply = msg_box.exec_()
         
         if reply == QMessageBox.Yes:
             self.perform_update()
+        else:
+            self.status_bar.showMessage(f"ChatCollect {CURRENT_VERSION} | Update skipped - New version available: {remote_version}")
 
     def perform_update(self):
         self.log("🔄 Starting update process...")
@@ -3074,8 +3104,9 @@ class ChatCollectGUI(QMainWindow):
             return
         
         self.log("=" * 50)
-        self.log("🍞 Starting ChatCollect Bot...")
+        self.log(f"🍞 ChatCollect {CURRENT_VERSION} - Starting Bot...")
         self.log("=" * 50)
+        self.status_bar.showMessage(f"ChatCollect {CURRENT_VERSION} | Bot Starting...")
         
         show_banner = self.show_banner_cb.isChecked()
         # Reload config to ensure latest messages/commands are used
@@ -3091,6 +3122,7 @@ class ChatCollectGUI(QMainWindow):
         self.bot_thread.start()
         
         self.start_btn.setEnabled(False)
+        self.status_bar.showMessage(f"ChatCollect {CURRENT_VERSION} | Bot Running")
 
     def toggle_banner(self, state):
         if self.bot_thread:
@@ -3105,6 +3137,7 @@ class ChatCollectGUI(QMainWindow):
         
         self.log("✅ Bot stopped")
         self.start_btn.setEnabled(True)
+        self.status_bar.showMessage(f"ChatCollect {CURRENT_VERSION} | Bot Stopped")
         self.rh_status_label.setText("Inactive")
         self.bs_status_label.setText("Inactive")
         self.fc_status_label.setText("Inactive")
