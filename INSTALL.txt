@@ -1,0 +1,72 @@
+╔═══════════════════════════════════════════════════════╗
+║         ChatCollect - Installation Guide              ║
+╚═══════════════════════════════════════════════════════╝
+
+📥 WHAT TO DOWNLOAD:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  You only need ONE file:
+  
+  ➤ ChatCollect.exe
+  
+  Download from: https://github.com/MrVokerr/ChatCollect/releases/latest
+  
+  That's it! Everything else is created automatically!
+
+📁 WHAT FILES ARE CREATED:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  When you first run ChatCollect.exe, it creates:
+  
+  ✓ chatcollect_config.json   → Your bot settings
+  ✓ chatcollect_data.txt       → Player scores/data
+  ✓ overlay/                   → Folder for item images
+  ✓ overlay/legendary/         → Folder for legendary items
+  ✓ overlay/overlay.html       → Browser source for OBS
+  ✓ backups/                   → Auto-backups of your data
+
+🔄 HOW TO UPDATE:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  EASY METHOD (In-App):
+  1. Open ChatCollect
+  2. Go to Settings tab
+  3. Click "🔄 Check for Updates"
+  4. Click Yes
+  5. Done! Your settings/data are preserved.
+  
+  MANUAL METHOD:
+  1. Download new ChatCollect.exe
+  2. Replace the old file
+  3. Done! Your config/data/images stay intact.
+
+🖼️ ADDING CUSTOM ITEMS:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  1. Add PNG images to overlay/ folder
+     Example: overlay/cookie.png
+  
+  2. For legendary items:
+     Add to overlay/legendary/ folder
+     Example: overlay/legendary/golden_cake.png
+
+🎥 OBS SETUP:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  1. Add Browser Source in OBS
+  2. Check "Local File"
+  3. Browse to: overlay/overlay.html
+  4. Set Width: 1920, Height: 1080
+  5. Check "Refresh browser when scene becomes active"
+
+💾 YOUR DATA IS SAFE:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Updates NEVER delete:
+  ✓ chatcollect_config.json (settings)
+  ✓ chatcollect_data.txt (player data)
+  ✓ overlay/ images (your custom items)
+  ✓ backups/ folder
+  
+  Only these get updated:
+  ✗ ChatCollect.exe (program)
+  ✗ overlay.html (browser source)
+
+📞 NEED HELP?
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  GitHub: https://github.com/MrVokerr/ChatCollect
+  Issues: https://github.com/MrVokerr/ChatCollect/issues

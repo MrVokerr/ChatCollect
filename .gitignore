@@ -1,7 +1,55 @@
+# User Data (DO NOT COMMIT - User-specific files)
 chatcollect_config.json
 chatcollect_data.txt
 backups/
+*.backup
+
+# Custom Images (User's custom assets)
+overlay/*.png
+overlay/*.jpg
+overlay/*.gif
+overlay/legendary/*.png
+overlay/legendary/*.jpg
+overlay/legendary/*.gif
+
+# Python Cache
 __pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# PyInstaller Build Output
 *.spec
-dist/
+build/dist/
+build/build/
+*.egg-info/
+
+# Built Executables
+ChatCollect.exe
+build/ChatCollect.exe
+
+# Temporary Update Files
+ChatCollect_new.exe
+update_restart.bat
+*.tmp
+
+# Virtual Environments
+venv/
+env/
+.env
+
+# IDE / Editor Files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS Files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
 *.log

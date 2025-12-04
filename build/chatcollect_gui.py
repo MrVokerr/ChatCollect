@@ -2736,6 +2736,34 @@ class ChatCollectGUI(QMainWindow):
         backup_group.setLayout(backup_layout)
         layout.addWidget(backup_group)
         
+        # About & Updates Group
+        about_group = QGroupBox("About & Updates")
+        about_layout = QVBoxLayout()
+        
+        # Version info
+        version_label = QLabel(f"<h3>ChatCollect {CURRENT_VERSION}</h3>")
+        version_label.setAlignment(Qt.AlignCenter)
+        about_layout.addWidget(version_label)
+        
+        # Update button
+        self.update_btn = QPushButton("🔄 Check for Updates")
+        self.update_btn.setObjectName("helpBtn")
+        self.update_btn.clicked.connect(self.manual_update_check)
+        about_layout.addWidget(self.update_btn)
+        
+        # Info label
+        info_label = QLabel(
+            "<p style='text-align: center; color: #888;'>"
+            "Updates preserve your config & data files.<br>"
+            "Only the exe and overlay files are updated."
+            "</p>"
+        )
+        info_label.setWordWrap(True)
+        about_layout.addWidget(info_label)
+        
+        about_group.setLayout(about_layout)
+        layout.addWidget(about_group)
+        
         layout.addStretch()
 
     def show_syntax_help(self):
@@ -2841,6 +2869,46 @@ class ChatCollectGUI(QMainWindow):
         import threading
         threading.Thread(target=_check, daemon=True).start()
 
+    def manual_update_check(self):
+        """Manual update check triggered by button"""
+        self.update_btn.setEnabled(False)
+        self.update_btn.setText("🔄 Checking...")
+        
+        def _check():
+            try:
+                with urllib.request.urlopen(UPDATE_VERSION_URL, timeout=5) as response:
+                    remote_version = response.read().decode('utf-8').strip()
+                
+                # Normalize version strings for comparison
+                current_normalized = CURRENT_VERSION.lstrip('v')
+                remote_normalized = remote_version.lstrip('v')
+                
+                if remote_normalized != current_normalized:
+                    QTimer.singleShot(0, lambda: self.prompt_update(remote_version))
+                    self.log(f"✨ Update available: {CURRENT_VERSION} → {remote_version}")
+                else:
+                    QTimer.singleShot(0, lambda: QMessageBox.information(
+                        self, 
+                        "Up to Date", 
+                        f"You're already running the latest version ({CURRENT_VERSION})!"
+                    ))
+                    self.log(f"✅ You're running the latest version ({CURRENT_VERSION})")
+            except Exception as e:
+                QTimer.singleShot(0, lambda: QMessageBox.warning(
+                    self, 
+                    "Update Check Failed", 
+                    f"Could not check for updates:\n{e}"
+                ))
+                self.log(f"❌ Update check failed: {e}")
+            finally:
+                QTimer.singleShot(0, lambda: (
+                    self.update_btn.setEnabled(True),
+                    self.update_btn.setText("🔄 Check for Updates")
+                ))
+        
+        import threading
+        threading.Thread(target=_check, daemon=True).start()
+
     def prompt_update(self, remote_version):
         msg_box = QMessageBox(self)
         msg_box.setWindowTitle("🎉 Update Available")
@@ -2869,42 +2937,26 @@ class ChatCollectGUI(QMainWindow):
         self.manage_auto_backups()
         
         try:
-            # 2. Download Additional Files (README, Overlay, Build folder)
-            self.log("⬇️ Downloading updated files...")
-            files_to_update = [
-                "README.md",
-                "overlay/overlay.html",
-                "build/chatcollect_gui.py",
-                "build/requirements.txt",
-                "build/build_exe.bat",
-                "build/install_requirements.bat",
-                "build/exe_icon.ico"
-            ]
-            
-            for file_path in files_to_update:
-                url = REPO_RAW_URL + file_path
-                local_path = os.path.join(BASE_PATH, file_path)
-                
-                # Ensure directory exists
-                os.makedirs(os.path.dirname(local_path), exist_ok=True)
-                
-                try:
-                    self.log(f"   Downloading {file_path}...")
-                    with urllib.request.urlopen(url) as response, open(local_path, 'wb') as out_file:
-                        shutil.copyfileobj(response, out_file)
-                except Exception as e:
-                    self.log(f"⚠️ Failed to update {file_path}: {e}")
-
-            # 3. Download new EXE
+            # 2. Download new EXE ONLY (don't touch user's config/data/images)
             new_exe_name = "ChatCollect_new.exe"
             self.log("⬇️ Downloading new executable...")
             
-            # Download with progress (blocking UI for simplicity, or use thread)
-            # Using urllib for simplicity
             with urllib.request.urlopen(UPDATE_EXE_URL) as response, open(new_exe_name, 'wb') as out_file:
                 shutil.copyfileobj(response, out_file)
                 
             self.log("✅ Download complete.")
+            
+            # 3. Download overlay.html (safe to overwrite)
+            try:
+                self.log("⬇️ Updating overlay.html...")
+                overlay_url = REPO_RAW_URL + "overlay/overlay.html"
+                overlay_path = os.path.join(OVERLAY_FOLDER, "overlay.html")
+                os.makedirs(os.path.dirname(overlay_path), exist_ok=True)
+                with urllib.request.urlopen(overlay_url) as response, open(overlay_path, 'wb') as out_file:
+                    shutil.copyfileobj(response, out_file)
+                self.log("✅ Overlay updated.")
+            except Exception as e:
+                self.log(f"⚠️ Could not update overlay: {e}")
             
             # 4. Create Updater Script
             updater_bat = "update_restart.bat"
@@ -2912,8 +2964,11 @@ class ChatCollectGUI(QMainWindow):
             
             with open(updater_bat, "w") as bat:
                 bat.write("@echo off\n")
+                bat.write("echo Updating ChatCollect...\n")
                 bat.write("timeout /t 2 /nobreak >nul\n")
                 bat.write(f'move /y "{new_exe_name}" "{current_exe}"\n')
+                bat.write("echo Update complete! Restarting...\n")
+                bat.write("timeout /t 1 /nobreak >nul\n")
                 bat.write(f'start "" "{current_exe}"\n')
                 bat.write(f'del "{updater_bat}"\n')
             

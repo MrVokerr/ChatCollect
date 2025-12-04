@@ -7,6 +7,44 @@ An interactive Twitch stream game where viewers "loot" virtual items, climb rank
 
 ---
 
+## 📥 Installation & Updates
+
+### First Time Setup
+1. **Download ONLY:** `ChatCollect.exe` from the [latest release](https://github.com/MrVokerr/ChatCollect/releases/latest)
+2. Place it in a folder (e.g., `C:\ChatCollect\`)
+3. Run `ChatCollect.exe` - it will auto-create:
+   - `chatcollect_config.json` (your settings)
+   - `chatcollect_data.txt` (player scores)
+   - `overlay/` folder with `overlay.html`
+   - `overlay/legendary/` folder for legendary items
+   - `backups/` folder for automatic backups
+
+### 🔄 Updating to New Versions
+**Easy Method (Recommended):**
+1. Open ChatCollect
+2. Go to **Settings** tab
+3. Click **"🔄 Check for Updates"**
+4. Click **Yes** to auto-update (your config/data/images are preserved!)
+
+**Manual Method:**
+- Just download the new `ChatCollect.exe` and replace the old one
+- Your `chatcollect_config.json`, `chatcollect_data.txt`, and `overlay/` images are never touched!
+
+### ✅ What You Keep Between Updates
+- ✅ All your settings (`chatcollect_config.json`)
+- ✅ Player scores/data (`chatcollect_data.txt`)
+- ✅ Custom item images in `overlay/` folder
+- ✅ Legendary items in `overlay/legendary/`
+- ✅ All backups
+
+### ❌ What Gets Updated
+- ❌ Only `ChatCollect.exe` (the program itself)
+- ❌ Only `overlay.html` (the browser source file)
+
+> **💡 Pro Tip:** You only need ONE file to get started: `ChatCollect.exe`. Everything else is created automatically!
+
+---
+
 ## 🚀 Quick Start
 
 ### 1. Configuration (First Time Setup)
