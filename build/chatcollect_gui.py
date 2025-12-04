@@ -813,10 +813,19 @@ async def broadcast_to_overlays(message):
         data = json.dumps(message)
         await asyncio.gather(*[client.send(data) for client in overlay_clients], return_exceptions=True)
 
-async def start_overlay_server():
+async def start_overlay_server(log_callback=None):
     """Start WebSocket server"""
-    async with websockets.serve(handle_overlay_connection, "0.0.0.0", 8765):
-        await asyncio.Future()
+    try:
+        async with websockets.serve(handle_overlay_connection, "0.0.0.0", 8765):
+            await asyncio.Future()
+    except OSError as e:
+        if e.errno == 10048:
+            msg = "❌ ERROR: Port 8765 is in use. Overlay disabled. Close other instances."
+            print(msg)
+            if log_callback:
+                log_callback(msg)
+        else:
+            raise e
 
 # ============ TWITCH BOT ============
 class ChatCollectBot(commands.Bot):
@@ -1491,7 +1500,7 @@ class BotThread(QThread):
             asyncio.set_event_loop(self.loop)
             
             # Start overlay server
-            overlay_task = self.loop.create_task(start_overlay_server())
+            overlay_task = self.loop.create_task(start_overlay_server(self.log))
             self.log("🍞 Overlay server started on ws://localhost:8765")
             
             # Start bot
