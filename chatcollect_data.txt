@@ -1,6 +1,0 @@
-# ChatCollect Player Database - Edit with Notepad
-# Format: username | loot_score | last_loot_time | luck | last_use_time | prestige_stars | shinies
-# WARNING: Keep the | separators intact!
-
-
-vokerr | 3 | 1761853334.49373
