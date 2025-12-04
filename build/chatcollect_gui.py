@@ -22,7 +22,7 @@ import websockets
 from twitchio.ext import commands
 
 # ============ VERSION & UPDATE CONFIG ============
-CURRENT_VERSION = "v1.2.6"
+CURRENT_VERSION = "v1.2.7"
 UPDATE_VERSION_URL = "https://raw.githubusercontent.com/MrVokerr/ChatCollect/main/version.txt"
 UPDATE_EXE_URL = "https://github.com/MrVokerr/ChatCollect/releases/latest/download/ChatCollect.exe"
 REPO_RAW_URL = "https://raw.githubusercontent.com/MrVokerr/ChatCollect/main/"
@@ -2054,7 +2054,13 @@ class ChatCollectGUI(QMainWindow):
         if os.path.exists(icon_path):
             self.setWindowIcon(QIcon(icon_path))
 
-        self.setGeometry(100, 100, 750, 850)
+        # Restore window geometry from config or use defaults
+        window_geometry = self.config.get('window_geometry', {})
+        x = window_geometry.get('x', 100)
+        y = window_geometry.get('y', 100)
+        width = window_geometry.get('width', 750)
+        height = window_geometry.get('height', 850)
+        self.setGeometry(x, y, width, height)
         
         # Enable Dark Title Bar (Windows 10/11)
         try:
@@ -3477,6 +3483,16 @@ class ChatCollectGUI(QMainWindow):
         self.stop_bot()
         
     def closeEvent(self, event):
+        # Save window geometry
+        geometry = self.geometry()
+        self.config['window_geometry'] = {
+            'x': geometry.x(),
+            'y': geometry.y(),
+            'width': geometry.width(),
+            'height': geometry.height()
+        }
+        self.save_configuration()
+        
         # Auto-stop bot when window closes
         if self.bot_thread and self.bot_thread.isRunning():
             self.log("🛑 Closing application - stopping bot...")
