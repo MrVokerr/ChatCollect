@@ -116,6 +116,7 @@ Adjust the core mechanics of the game in the **Setup > Balance** tab:
 *   **Cooldown**: Set how often users can loot (Default: 60s).
 *   **Shiny Chance**: Set the rarity of Shiny items (Default: 1 in 10,000).
 *   **Legendary Chance**: Set the rarity of Legendary items (Default: 1 in 1,000).
+*   **Steal Chance**: Set the chance for a viewer to steal loot from another player (Default: 1%).
 
 ### **Appearance & Settings**
 Customize the look of the application in the **Settings** tab:
@@ -142,6 +143,13 @@ Never lose your settings!
 *   **Shiny** (Base Chance + Luck): Color-shifting glow + badge + explosion.
 *   **Golden** (5% + Luck): Golden glow + 3x points.
 *   **Ruined** (5%): Item is destroyed + 0 points.
+
+### 😈 Steal Mechanic
+*   **The Heist**: There is a small chance (configurable) that when a player loots an item, a random *other* player will swoop in and steal it!
+*   **The Result**: 
+    *   **Thief**: Gets the points for the item.
+    *   **Victim**: Gets nothing... and still has to wait for their cooldown!
+*   **Config**: Adjust the **Steal Chance** (0-100%) in the **Balance** tab and customize the message in the **Messages** tab.
 
 ---
 

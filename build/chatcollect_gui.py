@@ -22,7 +22,7 @@ import websockets
 from twitchio.ext import commands
 
 # ============ VERSION & UPDATE CONFIG ============
-CURRENT_VERSION = "v1.2.8"
+CURRENT_VERSION = "v1.2.9"
 UPDATE_VERSION_URL = "https://raw.githubusercontent.com/MrVokerr/ChatCollect/main/version.txt"
 UPDATE_EXE_URL = "https://github.com/MrVokerr/ChatCollect/releases/latest/download/ChatCollect.exe"
 REPO_RAW_URL = "https://raw.githubusercontent.com/MrVokerr/ChatCollect/main/"
@@ -64,7 +64,8 @@ DEFAULT_CONFIG = {
         "loot_drive_start": "🎒 LOOT DRIVE STARTED! Community Goal: {target} Items!",
         "bounty_hunter_spawn": "🧐 BOUNTY HUNTER ARRIVED! He wants a {item}!",
         "bounty_hunter_satisfied": "🧐 {username} satisfied the Bounty Hunter! (+{points} pts)",
-        "use_no_loot": "@{username}, you need to loot something first!"
+        "use_no_loot": "@{username}, you need to loot something first!",
+        "loot_stolen": "😈 But @{thief} stole it from you! (+{points} pts)"
     },
     "events": {
         "rush_hour_name": "Rush Hour",
@@ -85,6 +86,7 @@ DEFAULT_CONFIG = {
     "luck_per_point": 5,
     "golden_chance": 0.05,
     "ruined_chance": 0.05,
+    "steal_chance": 0.01,
     "loot_drive_target": 150,
     "contest_entry_cost": 10,
     "rush_hour_cooldown_divider": 6,
@@ -1186,7 +1188,20 @@ class ChatCollectBot(commands.Bot):
             self.log_callback(f"🧐 {username} satisfied the {evts['bounty_hunter_name']}!")
             self._send_status_update()
 
-        bake_score += points_gained
+        # Steal Logic
+        steal_chance = float(self.config.get('steal_chance', 0.01))
+        is_stolen = False
+        thief = None
+        potential_thieves = [u for u in player_data if u != username]
+        
+        if potential_thieves and random.random() < steal_chance:
+            is_stolen = True
+            thief = random.choice(potential_thieves)
+            player_data[thief]['loot_score'] += points_gained
+            self.log_callback(f"😈 {thief} stole loot from {username}")
+        else:
+            bake_score += points_gained
+
         new_rank_title = self.get_rank_title(bake_score)
 
         player_data[username]['loot_score'] = bake_score
@@ -1223,7 +1238,11 @@ class ChatCollectBot(commands.Bot):
 
         # Construct Message
         msg = ""
-        if rarity == "ruined":
+        if is_stolen:
+            base_msg = msgs.get("loot_stolen", "😈 But @{thief} stole it from you! (+{points} pts)")
+            msg = base_msg.format(username=username, thief=thief, item=item_display_name, points=points_gained, rank=new_rank_title, score=int(bake_score))
+            msg += f"{critic_msg}{loot_drive_msg}"
+        elif rarity == "ruined":
             base_msg = msgs.get("loot_ruined", DEFAULT_CONFIG["messages"]["loot_ruined"])
             msg = base_msg.format(username=username, item=item_display_name, points=points_gained, rank=new_rank_title, score=int(bake_score))
             self.log_callback(f"🔥 {username} ruined a {item_display_name}")
@@ -2441,6 +2460,7 @@ class ChatCollectGUI(QMainWindow):
         self.add_config_input(scroll_layout, "messages", "bounty_hunter_spawn", "Bounty Hunter Spawn:")
         self.add_config_input(scroll_layout, "messages", "bounty_hunter_satisfied", "Bounty Hunter Satisfied:")
         self.add_config_input(scroll_layout, "messages", "use_no_loot", "Use (No Loot) Message:")
+        self.add_config_input(scroll_layout, "messages", "loot_stolen", "Steal Message:")
         
         scroll.setWidget(scroll_content)
         msg_layout.addWidget(scroll)
@@ -2577,8 +2597,16 @@ class ChatCollectGUI(QMainWindow):
         self.ruined_chance_spin.setValue(int(self.config.get('ruined_chance', 0.05) * 100))
         self.ruined_chance_spin.valueChanged.connect(self.save_settings_change)
         rarity_layout.addWidget(self.ruined_chance_spin, 1, 1)
+
+        rarity_layout.addWidget(QLabel("Steal Chance:"), 2, 0)
+        self.steal_chance_spin = QSpinBox()
+        self.steal_chance_spin.setRange(0, 100)
+        self.steal_chance_spin.setSuffix("%")
+        self.steal_chance_spin.setValue(int(self.config.get('steal_chance', 0.01) * 100))
+        self.steal_chance_spin.valueChanged.connect(self.save_settings_change)
+        rarity_layout.addWidget(self.steal_chance_spin, 2, 1)
         
-        rarity_layout.addWidget(QLabel("ℹ️ Luck increases golden/shiny chances"), 0, 2, 2, 1)
+        rarity_layout.addWidget(QLabel("ℹ️ Luck increases golden/shiny chances"), 0, 2, 3, 1)
         
         rarity_group.setLayout(rarity_layout)
         balance_layout.addWidget(rarity_group)
@@ -3201,6 +3229,7 @@ class ChatCollectGUI(QMainWindow):
         self.luck_per_point_spin.setValue(int(self.config.get('luck_per_point', 5)))
         self.golden_chance_spin.setValue(int(self.config.get('golden_chance', 0.05) * 100))
         self.ruined_chance_spin.setValue(int(self.config.get('ruined_chance', 0.05) * 100))
+        self.steal_chance_spin.setValue(int(self.config.get('steal_chance', 0.01) * 100))
         self.loot_drive_target_spin.setValue(int(self.config.get('loot_drive_target', 150)))
         self.contest_entry_spin.setValue(int(self.config.get('contest_entry_cost', 10)))
         self.rush_hour_divider_spin.setValue(int(self.config.get('rush_hour_cooldown_divider', 6)))
@@ -3253,6 +3282,7 @@ class ChatCollectGUI(QMainWindow):
         self.config['luck_per_point'] = self.luck_per_point_spin.value()
         self.config['golden_chance'] = self.golden_chance_spin.value() / 100.0
         self.config['ruined_chance'] = self.ruined_chance_spin.value() / 100.0
+        self.config['steal_chance'] = self.steal_chance_spin.value() / 100.0
         self.config['loot_drive_target'] = self.loot_drive_target_spin.value()
         self.config['contest_entry_cost'] = self.contest_entry_spin.value()
         self.config['rush_hour_cooldown_divider'] = self.rush_hour_divider_spin.value()
