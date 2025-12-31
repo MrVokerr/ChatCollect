@@ -10,6 +10,7 @@ import ctypes
 import urllib.request
 import subprocess
 import base64
+import webbrowser
 from ctypes import windll, byref, c_int
 from datetime import datetime
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
@@ -22,10 +23,10 @@ import websockets
 from twitchio.ext import commands
 
 # ============ VERSION & UPDATE CONFIG ============
-CURRENT_VERSION = "v1.2.9"
-UPDATE_VERSION_URL = "https://raw.githubusercontent.com/MrVokerr/ChatCollect/main/version.txt"
-UPDATE_EXE_URL = "https://github.com/MrVokerr/ChatCollect/releases/latest/download/ChatCollect.exe"
-REPO_RAW_URL = "https://raw.githubusercontent.com/MrVokerr/ChatCollect/main/"
+CURRENT_VERSION = "v1.4.0"
+REMOTE_REPOSITORIES = ["https://github.com/MrVokerr/ChatCollect"]
+UPDATE_FILE_PATH = "/raw/main/README.md"
+APP_NAME_IN_README = "ChatCollect"
 
 # ============ PATH CONFIGURATION ============
 if getattr(sys, 'frozen', False):
@@ -65,7 +66,7 @@ DEFAULT_CONFIG = {
         "bounty_hunter_spawn": "🧐 BOUNTY HUNTER ARRIVED! He wants a {item}!",
         "bounty_hunter_satisfied": "🧐 {username} satisfied the Bounty Hunter! (+{points} pts)",
         "use_no_loot": "@{username}, you need to loot something first!",
-        "loot_stolen": "😈 But @{thief} stole it from you! (+{points} pts)"
+        "loot_stolen": "😈 @{thief} stole your {item}! They gained {points} pts. Your score is still {score}."
     },
     "events": {
         "rush_hour_name": "Rush Hour",
@@ -2908,194 +2909,97 @@ class ChatCollectGUI(QMainWindow):
             
         self.save_configuration()
 
-    def check_for_updates(self):
-        """Check for updates in a separate thread"""
+    def perform_update_check(self, triggering_control=None):
+        """Check for updates following the implementation guide logic"""
+        if triggering_control:
+            triggering_control.setEnabled(False)
+            triggering_control.setText("🔄 Checking...")
+
         def _check():
             try:
-                with urllib.request.urlopen(UPDATE_VERSION_URL, timeout=5) as response:
-                    remote_version = response.read().decode('utf-8').strip()
+                best_url = ""
+                highest_version = 0.0
+                current_version_num = 0.0
                 
-                # Normalize version strings for comparison (strip 'v' prefix if present)
-                current_normalized = CURRENT_VERSION.lstrip('v')
-                remote_normalized = remote_version.lstrip('v')
-                
-                if remote_normalized != current_normalized:
-                    # Signal main thread to prompt
-                    QTimer.singleShot(0, lambda: self.prompt_update(remote_version))
-                    self.log(f"✨ Update available: {CURRENT_VERSION} → {remote_version}")
+                # Parse local version (remove 'v')
+                try:
+                    current_version_num = float(CURRENT_VERSION.replace("v", ""))
+                except ValueError:
+                    print(f"Error parsing current version: {CURRENT_VERSION}")
+
+                for repo_url in REMOTE_REPOSITORIES:
+                    try: 
+                        # Download the README
+                        url = repo_url + UPDATE_FILE_PATH
+                        req = urllib.request.Request(url)
+                        req.add_header('User-Agent', 'ChatCollect-Updater')
+                        with urllib.request.urlopen(req, timeout=5) as response:
+                            raw_content = response.read().decode('utf-8')
+                        
+                        if raw_content:
+                            # Get the first line
+                            first_line = raw_content.split('\\n')[0]
+
+                            # Check if the line contains our App Name
+                            if APP_NAME_IN_README in first_line:
+                                # Logic: Split by space, take the last element, remove 'v', parse as float
+                                parts = first_line.split(' ')
+                                version_string = parts[-1].strip()
+                                
+                                try:
+                                    found_version = float(version_string.replace("v", ""))
+                                    if found_version > highest_version:
+                                        highest_version = found_version
+                                        best_url = repo_url
+                                except ValueError:
+                                    pass
+                    except Exception as loop_ex:
+                        print(f"Failed to check repo {repo_url}: {loop_ex}")
+
+                # Compare versions
+                if best_url and highest_version > current_version_num:
+                    new_version_str = f"v{highest_version}"
+                    
+                    # Show prompt on UI thread
+                    QTimer.singleShot(0, lambda: self.show_update_prompt(new_version_str, best_url))
                 else:
-                    self.log(f"✅ You're running the latest version ({CURRENT_VERSION})")
-            except Exception as e:
-                print(f"Update check failed: {e}")
+                    # Notify user they are up to date (only if manual check)
+                    if triggering_control:
+                        QTimer.singleShot(0, lambda: QMessageBox.information(self, "Up to Date", "You already have the latest version."))
+            
+            except Exception as ex:
+                print(ex)
+                if triggering_control:
+                    QTimer.singleShot(0, lambda: QMessageBox.warning(self, "Update Check Failed", "Unable to check for updates. Please check your internet connection."))
+            finally:
+                # Re-enable the button if one was passed
+                if triggering_control:
+                    def reset_btn():
+                        triggering_control.setEnabled(True)
+                        triggering_control.setText("🔄 Check for Updates")
+                    QTimer.singleShot(0, reset_btn)
 
         import threading
         threading.Thread(target=_check, daemon=True).start()
+
+    def show_update_prompt(self, new_version, url):
+        reply = QMessageBox.question(
+            self, 
+            "Update Available", 
+            f"New version ({new_version}) found!\\nCurrent Version is {CURRENT_VERSION}.\\n\\nDo you want to visit the download page?", 
+            QMessageBox.Yes | QMessageBox.No
+        )
+
+        if reply == QMessageBox.Yes:
+            webbrowser.open(url)
+
+    def check_for_updates(self):
+        """Startup update check (silent if no update)"""
+        self.perform_update_check(triggering_control=None)
 
     def manual_update_check(self):
-        """Manual update check triggered by button"""
-        self.update_btn.setEnabled(False)
-        self.update_btn.setText("🔄 Checking...")
-        
-        def _check():
-            update_available = False
-            remote_ver = ""
-            error_occurred = False
-            error_message = ""
-            
-            try:
-                with urllib.request.urlopen(UPDATE_VERSION_URL, timeout=10) as response:
-                    remote_ver = response.read().decode('utf-8').strip()
-                
-                # Normalize version strings for comparison
-                current_normalized = CURRENT_VERSION.lstrip('v')
-                remote_normalized = remote_ver.lstrip('v')
-                
-                if remote_normalized != current_normalized:
-                    update_available = True
-                    self.log(f"✨ Update available: {CURRENT_VERSION} → {remote_ver}")
-                else:
-                    self.log(f"✅ You're running the latest version ({CURRENT_VERSION})")
-            except Exception as e:
-                error_occurred = True
-                error_message = str(e)
-                self.log(f"❌ Update check failed: {e}")
-            
-            # Schedule UI updates on main thread
-            def update_ui():
-                self.update_btn.setEnabled(True)
-                self.update_btn.setText("🔄 Check for Updates")
-                
-                if error_occurred:
-                    QMessageBox.warning(
-                        self, 
-                        "Update Check Failed", 
-                        f"Could not check for updates:\n{error_message}"
-                    )
-                elif update_available:
-                    self.prompt_update(remote_ver)
-                else:
-                    QMessageBox.information(
-                        self, 
-                        "Up to Date", 
-                        f"You're already running the latest version ({CURRENT_VERSION})!"
-                    )
-            
-            QTimer.singleShot(0, update_ui)
-        
-        import threading
-        threading.Thread(target=_check, daemon=True).start()
-
-    def prompt_update(self, remote_version):
-        msg_box = QMessageBox(self)
-        msg_box.setWindowTitle("🎉 Update Available")
-        msg_box.setIcon(QMessageBox.Information)
-        msg_box.setText(f"<h3>New Version Available!</h3>")
-        msg_box.setInformativeText(
-            f"<p><b>Current Version:</b> {CURRENT_VERSION}<br>"
-            f"<b>New Version:</b> {remote_version}</p>"
-            f"<p>Would you like to download and install the update now?</p>"
-            f"<p style='color: #888; font-size: 9pt;'><i>Your settings will be automatically backed up.</i></p>"
-        )
-        msg_box.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
-        msg_box.setDefaultButton(QMessageBox.Yes)
-        
-        reply = msg_box.exec_()
-        
-        if reply == QMessageBox.Yes:
-            self.perform_update()
-        else:
-            self.status_bar.showMessage(f"ChatCollect {CURRENT_VERSION} | Update skipped - New version available: {remote_version}")
-
-    def perform_update(self):
-        self.log("🔄 Starting update process...")
-        
-        # 1. Create Backup (Keep max 2)
-        self.manage_auto_backups()
-        
-        try:
-            # 2. Download new EXE ONLY (don't touch user's config/data/images)
-            new_exe_name = "ChatCollect_new.exe"
-            self.log("⬇️ Downloading new executable...")
-            
-            with urllib.request.urlopen(UPDATE_EXE_URL) as response, open(new_exe_name, 'wb') as out_file:
-                shutil.copyfileobj(response, out_file)
-                
-            self.log("✅ Download complete.")
-            
-            # 3. Download overlay.html (safe to overwrite)
-            try:
-                self.log("⬇️ Updating overlay.html...")
-                overlay_url = REPO_RAW_URL + "overlay/overlay.html"
-                overlay_path = os.path.join(OVERLAY_FOLDER, "overlay.html")
-                os.makedirs(os.path.dirname(overlay_path), exist_ok=True)
-                with urllib.request.urlopen(overlay_url) as response, open(overlay_path, 'wb') as out_file:
-                    shutil.copyfileobj(response, out_file)
-                self.log("✅ Overlay updated.")
-            except Exception as e:
-                self.log(f"⚠️ Could not update overlay: {e}")
-            
-            # 4. Create Updater Script
-            updater_bat = "update_restart.bat"
-            current_exe = sys.executable
-            
-            with open(updater_bat, "w") as bat:
-                bat.write("@echo off\n")
-                bat.write("echo Updating ChatCollect...\n")
-                bat.write("timeout /t 2 /nobreak >nul\n")
-                bat.write(f'move /y "{new_exe_name}" "{current_exe}"\n')
-                bat.write("echo Update complete! Restarting...\n")
-                bat.write("timeout /t 1 /nobreak >nul\n")
-                bat.write(f'start "" "{current_exe}"\n')
-                bat.write(f'del "{updater_bat}"\n')
-            
-            self.log("🚀 Restarting to apply update...")
-            
-            # 5. Launch Updater and Exit
-            subprocess.Popen([updater_bat], shell=True)
-            QApplication.quit()
-            
-        except Exception as e:
-            self.log(f"❌ Update failed: {e}")
-            QMessageBox.critical(self, "Update Failed", f"Could not update: {e}")
-
-    def manage_auto_backups(self):
-        """Create backup and ensure only 2 newest exist"""
-        try:
-            backup_dir = os.path.join(os.getcwd(), "backups")
-            if not os.path.exists(backup_dir):
-                os.makedirs(backup_dir)
-            
-            # Create new backup
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            
-            # Backup Config
-            shutil.copy2(CONFIG_FILE, os.path.join(backup_dir, f"config_auto_{timestamp}.json"))
-            # Backup Data
-            if os.path.exists(DB_PATH):
-                shutil.copy2(DB_PATH, os.path.join(backup_dir, f"data_auto_{timestamp}.txt"))
-            
-            self.log("✅ Auto-backup created.")
-            
-            # Cleanup old backups (Keep newest 2 sets)
-            # Filter for auto backups
-            files = sorted([os.path.join(backup_dir, f) for f in os.listdir(backup_dir) if f.startswith("config_auto_")], key=os.path.getmtime)
-            
-            while len(files) > 2:
-                oldest_config = files.pop(0)
-                # Try to find matching data file
-                timestamp_part = oldest_config.split("_")[-1].replace(".json", "")
-                oldest_data = os.path.join(backup_dir, f"data_auto_{timestamp_part}.txt")
-                
-                try:
-                    os.remove(oldest_config)
-                    if os.path.exists(oldest_data):
-                        os.remove(oldest_data)
-                    self.log(f"🗑️ Removed old backup: {os.path.basename(oldest_config)}")
-                except Exception as e:
-                    print(f"Failed to remove old backup: {e}")
-                    
-        except Exception as e:
-            self.log(f"⚠️ Auto-backup warning: {e}")
+        """Button update check"""
+        self.perform_update_check(triggering_control=self.update_btn)
 
     def browse_output_dir(self):
         directory = QFileDialog.getExistingDirectory(self, "Select Output Directory")

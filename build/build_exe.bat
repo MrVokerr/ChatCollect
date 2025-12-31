@@ -92,4 +92,4 @@ echo.
 echo ChatCollect.exe is ready in the root folder.
 echo.
 echo Press any key to close...
-pause >nul
+exit

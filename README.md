@@ -1,3 +1,5 @@
+ChatCollect v1.4.0
+
 # ChatCollect - Streamer Edition 🎒
 
 ## 🎮 What is ChatCollect?
