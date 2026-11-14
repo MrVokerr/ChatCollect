@@ -16,7 +16,8 @@ Example:
 - Version in code: `build/chatcollect_gui.py` line ~25
 - Version file: `version.txt` (root)
 - Main source: `build/chatcollect_gui.py`
-- GitHub Actions workflow: `.github/workflows/release.yml`
+- GitHub Actions workflow: `.github/workflows/release.yml` (manual-only fallback; uses Actions minutes, run only with the owner's OK)
+- Local checks: `bash scripts/test-local.sh` (also the pre-push hook in `.githooks/`)
 
 ## User Data Protection
 Never suggest editing these files (they're in .gitignore):
@@ -25,13 +26,13 @@ Never suggest editing these files (they're in .gitignore):
 - `backups/`
 - `overlay/*.png` (except defaults)
 
-## Update Workflow (Automated)
+## Update Workflow (local-first, no automatic GitHub Actions)
 When user wants to release:
-1. Auto-sync version in code with `version.txt`
-2. Build exe locally with `build_exe.bat` for testing
-3. Commit and push changes
-4. Create and push git tag: `git tag v1.x.x && git push origin v1.x.x`
-5. GitHub Actions automatically builds exe and creates release
+1. Sync version in code with `version.txt`; `bash scripts/test-local.sh` must pass
+2. Build exe locally with `build_exe.bat` and test it
+3. Commit, then push once
+4. Create and push git tag: `git tag v1.x.x && git push origin v1.x.x` (pushing a tag no longer builds anything)
+5. Create the GitHub release for that tag and attach the locally built `build/dist/ChatCollect.exe`
 6. Users get auto-update via in-app button
 
 ## Manual Release (Fallback)

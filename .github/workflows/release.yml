@@ -1,9 +1,15 @@
-name: Build and Release ChatCollect
+name: Build and Release ChatCollect (manual)
 
+# MANUAL ONLY (local-first rule). Preferred release path is local: build\build_exe.bat on
+# Windows, then attach build\dist\ChatCollect.exe to a GitHub release for the tag.
+# Fallback: push the tag, then start this from the Actions tab with that tag, only with the
+# owner's OK (windows-latest runners use Actions minutes at 2x).
 on:
-  push:
-    tags:
-      - 'v*'  # Triggers on version tags like v1.2.7
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing version tag to build and release, e.g. v1.4.0"
+        required: true
 
 permissions:
   contents: write  # create the GitHub release
@@ -14,6 +20,8 @@ jobs:
     
     steps:
     - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      with:
+        ref: ${{ inputs.tag }}
     - name: Set up Python
       uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
       with:
@@ -33,9 +41,10 @@ jobs:
     - name: Create Release
       uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
       with:
+        tag_name: ${{ inputs.tag }}
         files: build/dist/ChatCollect.exe
         body: |
-          ## What's New in ${{ github.ref_name }}
+          ## What's New in ${{ inputs.tag }}
           
           Download `ChatCollect.exe` below and run it! 
           
