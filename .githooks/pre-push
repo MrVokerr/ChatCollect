@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# Runs the local test suite before every push (local-first: no GitHub Actions minutes).
+# Turn on once per clone:  git config core.hooksPath .githooks
+# Skip once (only when you know why):  git push --no-verify
+set -e
+root="$(git rev-parse --show-toplevel)"
+echo "pre-push: running scripts/test-local.sh"
+bash "$root/scripts/test-local.sh"
